@@ -1,0 +1,19 @@
+[llm]
+# 目标 LLM API 服务器地址
+# 示例:
+# OpenAI: https://api.openai.com/v1
+# Azure OpenAI: https://your-resource.openai.azure.com/openai/deployments/your-deployment
+# 其他兼容 OpenAI API 的服务
+api_base_url = "https://api.openai.com/v1"
+
+# 服务器配置
+[server]
+host = "0.0.0.0"
+port = 8000
+debug = true
+access_password = 
+
+# 数据库配置
+[database]
+# SQLite 数据库文件路径
+db_path = "llm_requests.db"

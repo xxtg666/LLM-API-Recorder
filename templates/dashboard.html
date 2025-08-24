@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM API Recorder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: #fff;
+            border-bottom: 1px solid #e1e5e9;
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c5aa0;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .search-input {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d9e0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            width: 300px;
+        }
+
+        .search-btn {
+            padding: 0.5rem 1rem;
+            background: #2c5aa0;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .search-btn:hover {
+            background: #1e3f73;
+        }
+
+        .main-content {
+            padding: 2rem 0;
+        }
+
+        .stats-bar {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c5aa0;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .requests-table {
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .table-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e1e5e9;
+            font-weight: 600;
+            color: #2c5aa0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #f0f4f8;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover {
+            background: #f8fafc;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: #e6fffa;
+            color: #065f46;
+        }
+
+        .status-error {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .status-pending {
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .request-id {
+            font-weight: 600;
+            color: #2c5aa0;
+            font-size: 0.9rem;
+        }
+        
+        .model-tag {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .token-info {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .token-item {
+            background: #f3f4f6;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: #374151;
+        }
+
+        .duration {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        .content-preview {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        .pagination {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .page-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d9e0;
+            background: #fff;
+            color: #374151;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .page-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .page-btn.active {
+            background: #2c5aa0;
+            color: white;
+            border-color: #2c5aa0;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+
+        .request-row {
+            cursor: pointer;
+        }
+
+        .request-row:hover {
+            background: #f8fafc !important;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .search-input {
+                width: 200px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            table {
+                font-size: 0.8rem;
+            }
+            
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">LLM API Recorder</div>
+                <form class="search-box" method="get" action="/">
+                    <input type="hidden" name="page" value="1">
+                    <input type="text" name="search" class="search-input" placeholder="搜索请求内容、模型、错误信息..." value="{{ search }}">
+                    <button type="submit" class="search-btn">搜索</button>
+                    {% if search %}
+                    <a href="/" class="search-btn" style="background: #6b7280; text-decoration: none;">清除</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <!-- 统计信息 -->
+            <div class="stats-bar">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number">{{ result.total }}</div>
+                        <div class="stat-label">总请求数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ result.requests|selectattr('status_code', 'equalto', 200)|list|length }}</div>
+                        <div class="stat-label">成功请求</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ result.requests|map(attribute='total_tokens')|sum }}</div>
+                        <div class="stat-label">总Token消耗</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ "%.2f"|format(result.requests|map(attribute='duration')|select('number')|sum) }}s</div>
+                        <div class="stat-label">总处理时间</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 请求记录表格 -->
+            <div class="requests-table">
+                <div class="table-header">
+                    {% if search %}
+                    搜索结果: "{{ search }}" ({{ result.total }} 条记录)
+                    {% else %}
+                    请求记录 ({{ result.total }} 条记录)
+                    {% endif %}
+                </div>
+                
+                {% if result.requests %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>时间</th>
+                            <th>模型</th>
+                            <th>状态</th>
+                            <th>Token使用</th>
+                            <th>耗时</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in result.requests %}
+                        <tr class="request-row" onclick="showRequestDetail({{ req.id }})">
+                            <td>
+                                <span class="request-id">#{{ req.id }}</span>
+                            </td>
+                            <td>
+                                {{ req.timestamp.split('T')[0] }}<br>
+                                <small style="color: #6b7280;">{{ req.timestamp.split('T')[1].split('.')[0] }}</small>
+                            </td>
+                            <td>
+                                <span class="model-tag">{{ req.model }}</span>
+                            </td>
+                            <td>
+                                {% if req.status_code == 200 %}
+                                <span class="status-badge status-success">成功</span>
+                                {% elif req.status_code == 0 %}
+                                <span class="status-badge status-pending">处理中</span>
+                                {% else %}
+                                <span class="status-badge status-error">错误</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="token-info">
+                                    <span class="token-item">输入: {{ req.formatted_input_tokens }}</span>
+                                    <span class="token-item">输出: {{ req.formatted_output_tokens }}</span>
+                                    <span class="token-item">总计: {{ req.formatted_total_tokens }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="duration">{{ req.formatted_duration }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <!-- 分页 -->
+                {% if result.pages > 1 %}
+                <div class="pagination">
+                    {% if current_page > 1 %}
+                    <a href="?page={{ current_page - 1 }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">上一页</a>
+                    {% endif %}
+                    
+                    {% for page_num in range(1, result.pages + 1) %}
+                        {% if page_num == current_page %}
+                        <span class="page-btn active">{{ page_num }}</span>
+                        {% elif page_num <= 3 or page_num > result.pages - 3 or (page_num >= current_page - 2 and page_num <= current_page + 2) %}
+                        <a href="?page={{ page_num }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">{{ page_num }}</a>
+                        {% elif page_num == 4 or page_num == result.pages - 3 %}
+                        <span class="page-btn">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if current_page < result.pages %}
+                    <a href="?page={{ current_page + 1 }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">下一页</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="no-data">
+                    {% if search %}
+                    没有找到包含 "{{ search }}" 的请求记录
+                    {% else %}
+                    暂无请求记录
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <!-- 请求详情模态框 -->
+    <div id="requestModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 8px; width: 95%; max-width: 1200px; max-height: 90%; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #e1e5e9; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                <h3>请求详情</h3>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button id="copyLinkBtn" onclick="copyRequestLink()" style="background: #e0e7ff; color: #3730a3; border: none; padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.9rem; cursor: pointer;">
+                        📋 复制链接
+                    </button>
+                    <button onclick="closeRequestDetail()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                </div>
+            </div>
+            <div id="requestDetailContent" style="padding: 1.5rem; overflow-y: auto; flex: 1;">
+                加载中...
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/json-viewer-js@1.3.0/dist/json-viewer.min.js"></script>
+    <style>
+        /* 请求详情样式 */
+        .detail-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .detail-title {
+            color: #2c5aa0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .view-toggle {
+            background: #e0e7ff;
+            color: #3730a3;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .view-toggle:hover {
+            background: #c7d2fe;
+        }
+        
+        .view-toggle.active {
+            background: #3730a3;
+            color: white;
+        }
+        
+        .content-wrapper {
+            background: #f8fafc;
+            border-radius: 6px;
+            padding: 1rem;
+            border: 1px solid #e1e5e9;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .message-item {
+            background: white;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .message-item.user {
+            border-left-color: #3b82f6;
+        }
+        
+        .message-item.assistant {
+            border-left-color: #10b981;
+        }
+        
+        .message-item.system {
+            border-left-color: #f59e0b;
+        }
+        
+        .message-role {
+            font-weight: 600;
+            text-transform: capitalize;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .message-role:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+        
+        .message-role::after {
+            content: '▼';
+            font-size: 0.8rem;
+            transition: transform 0.2s;
+        }
+        
+        .message-role.collapsed::after {
+            transform: rotate(-90deg);
+        }
+        
+        .message-role.user {
+            color: #3b82f6;
+        }
+        
+        .message-role.assistant {
+            color: #10b981;
+        }
+        
+        .message-role.system {
+            color: #f59e0b;
+        }
+        
+        .message-content {
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .param-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .param-grid.basic-info {
+            grid-template-rows: repeat(2, 1fr);
+        }
+        
+        .param-item {
+            background: white;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .param-label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .param-value {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .param-value.boolean {
+            color: #059669;
+        }
+        
+        .param-value.number {
+            color: #dc2626;
+        }
+        
+        .raw-json {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .usage-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .usage-item {
+            text-align: center;
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .usage-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #3730a3;
+            display: block;
+        }
+        
+        .usage-label {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+    </style>
+
+    <script>
+        // 美化显示函数
+        function renderRequestDetails(data, contentElement) {
+            const requestData = data.request_content;
+            const responseData = data.response_content;
+            
+            let html = `
+                <div style="display: grid; gap: 1.5rem;">
+                    <!-- 基本信息 -->
+                    <div class="detail-section">
+                        <h4 class="detail-title">基本信息</h4>
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 6px;">
+                            <div class="param-grid basic-info">
+                                <div class="param-item">
+                                    <div class="param-label">请求ID</div>
+                                    <div class="param-value">${data.id}</div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">时间</div>
+                                    <div class="param-value">${new Date(data.timestamp).toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'})}</div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">模型</div>
+                                    <div class="param-value">${data.model}</div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">状态</div>
+                                    <div class="param-value">${data.status_code === 200 ? '✅ 成功' : data.status_code === 0 ? '⏳ 处理中' : '❌ 错误'}</div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">耗时</div>
+                                    <div class="param-value number">${data.duration ? data.duration.toFixed(3) + 's' : 'N/A'}</div>
+                                </div>
+                                <div class="param-item">
+                                    <div class="param-label">总Token</div>
+                                    <div class="param-value number">${data.total_tokens}</div>
+                                </div>
+                            </div>
+                            ${data.error_message ? `<div style="background: #fef2f2; color: #dc2626; padding: 0.75rem; border-radius: 4px; margin-top: 1rem;"><strong>错误信息:</strong> ${data.error_message}</div>` : ''}
+                            ${data.total_tokens > 0 ? `
+                            <div class="usage-stats">
+                                <div class="usage-item">
+                                    <span class="usage-number">${data.input_tokens}</span>
+                                    <div class="usage-label">输入Token</div>
+                                </div>
+                                <div class="usage-item">
+                                    <span class="usage-number">${data.output_tokens}</span>
+                                    <div class="usage-label">输出Token</div>
+                                </div>
+                                <div class="usage-item">
+                                    <span class="usage-number">${data.total_tokens}</span>
+                                    <div class="usage-label">总Token</div>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+            `;
+            
+            // 请求内容
+            if (requestData) {
+                html += `
+                    <div class="detail-section">
+                        <div class="detail-header">
+                            <h4 class="detail-title">请求内容</h4>
+                            <button class="view-toggle" onclick="toggleView('request', this)">查看原始JSON</button>
+                        </div>
+                        <div class="content-wrapper">
+                            <div id="request-formatted">
+                                ${formatRequestContent(requestData)}
+                            </div>
+                            <div id="request-raw" class="raw-json hidden">
+                                ${JSON.stringify(requestData, null, 2)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 响应内容
+            if (responseData) {
+                html += `
+                    <div class="detail-section">
+                        <div class="detail-header">
+                            <h4 class="detail-title">响应内容</h4>
+                            <button class="view-toggle" onclick="toggleView('response', this)">查看原始JSON</button>
+                        </div>
+                        <div class="content-wrapper">
+                            <div id="response-formatted">
+                                ${formatResponseContent(responseData)}
+                            </div>
+                            <div id="response-raw" class="raw-json hidden">
+                                ${JSON.stringify(responseData, null, 2)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            contentElement.innerHTML = html;
+        }
+        
+        function formatRequestContent(requestData) {
+            let html = '';
+            
+            // 显示请求参数
+            if (requestData.model || requestData.temperature !== undefined || requestData.max_tokens !== undefined || requestData.stream !== undefined) {
+                html += '<div class="param-grid" style="margin-bottom: 1rem;">';
+                
+                if (requestData.model) {
+                    html += `
+                        <div class="param-item">
+                            <div class="param-label">模型</div>
+                            <div class="param-value">${requestData.model}</div>
+                        </div>
+                    `;
+                }
+                
+                if (requestData.temperature !== undefined) {
+                    html += `
+                        <div class="param-item">
+                            <div class="param-label">温度</div>
+                            <div class="param-value number">${requestData.temperature}</div>
+                        </div>
+                    `;
+                }
+                
+                if (requestData.max_tokens !== undefined) {
+                    html += `
+                        <div class="param-item">
+                            <div class="param-label">最大Token</div>
+                            <div class="param-value number">${requestData.max_tokens}</div>
+                        </div>
+                    `;
+                }
+                
+                if (requestData.stream !== undefined) {
+                    html += `
+                        <div class="param-item">
+                            <div class="param-label">流式</div>
+                            <div class="param-value boolean">${requestData.stream ? '是' : '否'}</div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+            }
+            
+            // 显示消息
+            if (requestData.messages && Array.isArray(requestData.messages)) {
+                html += '<div style="margin-top: 1rem;"><h5 style="margin-bottom: 0.75rem; color: #374151;">对话消息</h5>';
+                requestData.messages.forEach((message, index) => {
+                    const role = message.role || 'unknown';
+                    const content = formatMessageContent(message.content);
+                    
+                    html += `
+                        <div class="message-item ${role}">
+                            <div class="message-role ${role}" onclick="toggleMessage(${index})" id="role-${index}">
+                                ${getRoleDisplayName(role)}
+                            </div>
+                            <div class="message-content" id="content-${index}">${content}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // 如果有prompt字段（非chat接口）
+            if (requestData.prompt) {
+                html += `
+                    <div style="margin-top: 1rem;">
+                        <h5 style="margin-bottom: 0.75rem; color: #374151;">提示词</h5>
+                        <div class="message-item">
+                            <div class="message-role" onclick="toggleMessage('prompt')" id="role-prompt">
+                                📝 提示词内容
+                            </div>
+                            <div class="message-content" id="content-prompt">${formatMessageContent(requestData.prompt)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return html;
+        }
+        
+        function formatResponseContent(responseData) {
+            let html = '';
+            
+            // 显示响应消息
+            if (responseData.choices && Array.isArray(responseData.choices)) {
+                html += '<div><h5 style="margin-bottom: 0.75rem; color: #374151;">响应内容</h5>';
+                responseData.choices.forEach((choice, index) => {
+                    if (choice.message) {
+                        const role = choice.message.role || 'assistant';
+                        const content = formatMessageContent(choice.message.content);
+                        
+                        html += `
+                            <div class="message-item ${role}">
+                                <div class="message-role ${role}" onclick="toggleMessage('response-${index}')" id="role-response-${index}">
+                                    ${getRoleDisplayName(role)}
+                                </div>
+                                <div class="message-content" id="content-response-${index}">${content}</div>
+                            </div>
+                        `;
+                    } else if (choice.text) {
+                        html += `
+                            <div class="message-item">
+                                <div class="message-role" onclick="toggleMessage('response-text-${index}')" id="role-response-text-${index}">
+                                    📝 响应文本
+                                </div>
+                                <div class="message-content" id="content-response-text-${index}">${formatMessageContent(choice.text)}</div>
+                            </div>
+                        `;
+                    }
+                });
+                html += '</div>';
+            }
+            
+            // 显示使用统计
+            if (responseData.usage) {
+                html += `
+                    <div style="margin-top: 1rem;">
+                        <h5 style="margin-bottom: 0.75rem; color: #374151;">使用统计</h5>
+                        <div class="usage-stats">
+                            <div class="usage-item">
+                                <span class="usage-number">${responseData.usage.prompt_tokens || 0}</span>
+                                <div class="usage-label">输入Token</div>
+                            </div>
+                            <div class="usage-item">
+                                <span class="usage-number">${responseData.usage.completion_tokens || 0}</span>
+                                <div class="usage-label">输出Token</div>
+                            </div>
+                            <div class="usage-item">
+                                <span class="usage-number">${responseData.usage.total_tokens || 0}</span>
+                                <div class="usage-label">总Token</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return html;
+        }
+        
+        function formatMessageContent(content) {
+            if (typeof content === 'string') {
+                return content.replace(/\n/g, '<br>').replace(/ {2}/g, '&nbsp;&nbsp;');
+            } else if (Array.isArray(content)) {
+                // 处理多模态内容
+                return content.map(item => {
+                    if (typeof item === 'string') {
+                        return item;
+                    } else if (item.type === 'text') {
+                        return item.text;
+                    } else if (item.type === 'image_url') {
+                        const imageUrl = item.image_url.url;
+                        // 检查是否是图片占位符
+                        if (imageUrl.startsWith('[图片占位符:')) {
+                            return `
+                                <div style="margin: 0.5rem 0; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; border: 1px solid #d1d5db;">
+                                    <div style="font-size: 0.85rem; color: #6b7280; display: flex; align-items: center; gap: 0.5rem;">
+                                        <span style="font-size: 1.2rem;">🖼️</span>
+                                        <span>${imageUrl}</span>
+                                    </div>
+                                </div>
+                            `;
+                        } else if (imageUrl.startsWith('data:image/')) {
+                            // 如果还有base64图片（旧数据），显示占位符
+                            return `
+                                <div style="margin: 0.5rem 0; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; border: 1px solid #d1d5db;">
+                                    <div style="font-size: 0.85rem; color: #6b7280; display: flex; align-items: center; gap: 0.5rem;">
+                                        <span style="font-size: 1.2rem;">🖼️</span>
+                                        <span>[图片内容 - 已省略显示]</span>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            return `
+                                <div style="margin: 0.5rem 0;">
+                                    <div style="font-size: 0.85rem; color: #6b7280; margin-bottom: 0.25rem;">📷 图片链接：</div>
+                                    <a href="${imageUrl}" target="_blank" style="color: #3b82f6; text-decoration: underline;">${imageUrl.length > 50 ? imageUrl.substring(0, 50) + '...' : imageUrl}</a>
+                                </div>
+                            `;
+                        }
+                    }
+                    return JSON.stringify(item);
+                }).join('<br>');
+            }
+            return JSON.stringify(content);
+        }
+        
+        function getRoleDisplayName(role) {
+            const roleNames = {
+                'user': '👤 用户',
+                'assistant': '🤖 助手',
+                'system': '⚙️ 系统',
+                'function': '🔧 函数'
+            };
+            return roleNames[role] || role;
+        }
+        
+        function toggleView(type, button) {
+            const formatted = document.getElementById(`${type}-formatted`);
+            const raw = document.getElementById(`${type}-raw`);
+            
+            if (formatted.classList.contains('hidden')) {
+                formatted.classList.remove('hidden');
+                raw.classList.add('hidden');
+                button.textContent = '查看原始JSON';
+                button.classList.remove('active');
+            } else {
+                formatted.classList.add('hidden');
+                raw.classList.remove('hidden');
+                button.textContent = '查看格式化';
+                button.classList.add('active');
+            }
+        }
+
+        function toggleMessage(messageIndex) {
+            const roleElement = document.getElementById(`role-${messageIndex}`);
+            const contentElement = document.getElementById(`content-${messageIndex}`);
+            
+            if (roleElement && contentElement) {
+                if (contentElement.style.display === 'none') {
+                    contentElement.style.display = 'block';
+                    roleElement.classList.remove('collapsed');
+                } else {
+                    contentElement.style.display = 'none';
+                    roleElement.classList.add('collapsed');
+                }
+            }
+        }
+        
+        let currentRequestId = null;
+        
+        function copyRequestLink() {
+            if (currentRequestId) {
+                const url = `${window.location.origin}${window.location.pathname}?request=${currentRequestId}`;
+                navigator.clipboard.writeText(url).then(() => {
+                    const btn = document.getElementById('copyLinkBtn');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '✅ 已复制';
+                    btn.style.background = '#dcfce7';
+                    btn.style.color = '#166534';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.style.background = '#e0e7ff';
+                        btn.style.color = '#3730a3';
+                    }, 2000);
+                }).catch(err => {
+                    alert('复制失败，请手动复制链接');
+                });
+            }
+        }
+
+        async function showRequestDetail(requestId) {
+            currentRequestId = requestId;
+            const modal = document.getElementById('requestModal');
+            const content = document.getElementById('requestDetailContent');
+            
+            modal.style.display = 'block';
+            content.innerHTML = '加载中...';
+            
+            try {
+                const response = await fetch(`/api/requests/${requestId}`);
+                const data = await response.json();
+                
+                renderRequestDetails(data, content);
+                
+            } catch (error) {
+                content.innerHTML = `<div style="color: #dc2626;">加载请求详情时出错: ${error.message}</div>`;
+            }
+        }
+        
+        function closeRequestDetail() {
+            document.getElementById('requestModal').style.display = 'none';
+        }
+        
+        // 点击模态框外部关闭
+        document.getElementById('requestModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeRequestDetail();
+            }
+        });
+        
+        // ESC键关闭模态框
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeRequestDetail();
+            }
+        });
+        
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查URL参数，支持直接打开请求详情
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestId = urlParams.get('request');
+            if (requestId) {
+                showRequestDetail(requestId);
+            }
+        });
+    </script>
+</body>
+</html>
