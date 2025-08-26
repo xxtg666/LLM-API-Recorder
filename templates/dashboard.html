@@ -385,8 +385,8 @@
                                 <span class="request-id">#{{ req.id }}</span>
                             </td>
                             <td>
-                                {{ req.timestamp.split('T')[0] }}<br>
-                                <small style="color: #6b7280;">{{ req.timestamp.split('T')[1].split('.')[0] }}</small>
+                                <small style="color: #6b7280;">{{ req.timestamp.split('T')[0] }}</small><br>
+                                {{ req.timestamp.split('T')[1].split('.')[0] }}
                             </td>
                             <td>
                                 <span class="model-tag">{{ req.model }}</span>
