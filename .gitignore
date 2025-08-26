@@ -1,3 +1,6 @@
 __pycache__/
 config.ini
 llm_requests.db
+.vscode/
+.venv/
+venv/

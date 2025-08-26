@@ -34,6 +34,7 @@ class APIRequest(Base):
             'id': self.id,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'model': self.model,
+            'app_name': self.app_name,
             'request_content': json.loads(self.request_content) if self.request_content else None,
             'response_content': json.loads(self.response_content) if self.response_content else None,
             'input_tokens': self.input_tokens,
