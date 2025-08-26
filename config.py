@@ -26,6 +26,7 @@ class Config:
         self.config.set('server', 'port', '8000')
         self.config.set('server', 'debug', 'true')
         self.config.set('server', 'access_password', '')
+        self.config.set('server', 'web_title', 'LLM API Recorder')
         
         self.config.add_section('database')
         self.config.set('database', 'db_path', 'llm_requests.db')
@@ -52,6 +53,10 @@ class Config:
     @property
     def access_password(self) -> str:
         return self.config.get('server', 'access_password', fallback='')
+    
+    @property
+    def web_title(self) -> str:
+        return self.config.get('server', 'web_title', fallback='LLM API 监控面板')
     
     @property
     def db_path(self) -> str:

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float, inspect, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timezone, timedelta
@@ -18,6 +18,7 @@ class APIRequest(Base):
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(UTC8), index=True)
     model = Column(String(100), index=True)
+    app_name = Column(String(100), index=True, nullable=True)  # 应用名称，来自X-Title头
     request_content = Column(Text)  # JSON格式的请求内容
     response_content = Column(Text)  # JSON格式的响应内容
     input_tokens = Column(Integer, default=0)
@@ -73,11 +74,38 @@ class Database:
                 print("数据库表创建成功")
             else:
                 print("数据库连接成功")
+                # 检查并执行数据库升级
+                self._upgrade_database()
         except Exception as e:
             print(f"数据库初始化失败: {e}")
             raise
             
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+    
+    def _upgrade_database(self):
+        """检查并升级数据库结构"""
+        try:
+            # 检查表结构
+            inspector = inspect(self.engine)
+            columns = inspector.get_columns('api_requests')
+            column_names = [col['name'] for col in columns]
+            
+            # 检查是否缺少app_name字段
+            if 'app_name' not in column_names:
+                print("检测到旧版数据库，正在添加app_name字段...")
+                
+                # 使用ALTER TABLE添加新字段
+                with self.engine.connect() as conn:
+                    conn.execute(text('ALTER TABLE api_requests ADD COLUMN app_name VARCHAR(100)'))
+                    conn.commit()
+                
+                print("数据库升级完成：已添加app_name字段")
+            else:
+                print("数据库结构已是最新版本")
+                
+        except Exception as e:
+            print(f"数据库升级检查失败: {e}")
+            # 升级失败不影响程序运行，只是记录错误
     
     def get_session(self):
         """获取数据库会话"""
@@ -85,12 +113,13 @@ class Database:
     
     def add_request(self, model: str, request_content: dict, response_content: dict = None, 
                    input_tokens: int = 0, output_tokens: int = 0, duration: float = 0,
-                   status_code: int = 200, error_message: str = None):
+                   status_code: int = 200, error_message: str = None, app_name: str = None):
         """添加API请求记录"""
         session = self.get_session()
         try:
             request_record = APIRequest(
                 model=model,
+                app_name=app_name,
                 request_content=json.dumps(request_content, ensure_ascii=False),
                 response_content=json.dumps(response_content, ensure_ascii=False) if response_content else None,
                 input_tokens=input_tokens,
@@ -109,7 +138,8 @@ class Database:
         finally:
             session.close()
     
-    def get_requests(self, page: int = 1, page_size: int = 50, search: str = None):
+    def get_requests(self, page: int = 1, page_size: int = 50, search: str = None, 
+                    model_filter: str = None, app_filter: str = None):
         """获取请求记录列表"""
         session = self.get_session()
         try:
@@ -120,10 +150,19 @@ class Database:
                 search_filter = f"%{search}%"
                 query = query.filter(
                     (APIRequest.model.like(search_filter)) |
+                    (APIRequest.app_name.like(search_filter)) |
                     (APIRequest.request_content.like(search_filter)) |
                     (APIRequest.response_content.like(search_filter)) |
                     (APIRequest.error_message.like(search_filter))
                 )
+            
+            # 模型筛选
+            if model_filter:
+                query = query.filter(APIRequest.model == model_filter)
+            
+            # 应用筛选
+            if app_filter:
+                query = query.filter(APIRequest.app_name == app_filter)
             
             # 按时间倒序排列
             query = query.order_by(APIRequest.timestamp.desc())
@@ -140,6 +179,72 @@ class Database:
                 'pages': (total + page_size - 1) // page_size,
                 'requests': [req.to_dict() for req in requests]
             }
+        finally:
+            session.close()
+    
+    def get_statistics(self, search: str = None, model_filter: str = None, app_filter: str = None):
+        """获取统计信息"""
+        session = self.get_session()
+        try:
+            # 构建查询条件
+            query = session.query(APIRequest)
+            
+            # 全文搜索
+            if search:
+                search_filter_text = f"%{search}%"
+                query = query.filter(
+                    (APIRequest.model.like(search_filter_text)) |
+                    (APIRequest.app_name.like(search_filter_text)) |
+                    (APIRequest.request_content.like(search_filter_text)) |
+                    (APIRequest.response_content.like(search_filter_text)) |
+                    (APIRequest.error_message.like(search_filter_text))
+                )
+            
+            # 模型筛选
+            if model_filter:
+                query = query.filter(APIRequest.model == model_filter)
+            
+            # 应用筛选
+            if app_filter:
+                query = query.filter(APIRequest.app_name == app_filter)
+            
+            # 计算统计数据
+            from sqlalchemy import func
+            stats = query.with_entities(
+                func.count(APIRequest.id).label('total_requests'),
+                func.sum(APIRequest.input_tokens).label('total_input_tokens'),
+                func.sum(APIRequest.output_tokens).label('total_output_tokens'),
+                func.sum(APIRequest.total_tokens).label('total_tokens'),
+                func.avg(APIRequest.duration).label('avg_duration')
+            ).first()
+            
+            return {
+                'total_requests': stats.total_requests or 0,
+                'total_input_tokens': stats.total_input_tokens or 0,
+                'total_output_tokens': stats.total_output_tokens or 0,
+                'total_tokens': stats.total_tokens or 0,
+                'avg_duration': round(stats.avg_duration or 0, 3)
+            }
+        finally:
+            session.close()
+    
+    def get_unique_models(self):
+        """获取所有不同的模型"""
+        session = self.get_session()
+        try:
+            from sqlalchemy import func
+            models = session.query(APIRequest.model).distinct().all()
+            return [model[0] for model in models if model[0]]
+        finally:
+            session.close()
+    
+    def get_unique_apps(self):
+        """获取所有不同的应用"""
+        session = self.get_session()
+        try:
+            from sqlalchemy import func
+            apps = session.query(APIRequest.app_name).distinct().all()
+            return [app[0] for app in apps if app[0]]
         finally:
             session.close()
     

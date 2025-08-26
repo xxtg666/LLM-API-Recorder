@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LLM API Recorder</title>
+        <title>{{ web_title }}</title>
     <style>
         * {
             margin: 0;
@@ -181,6 +181,15 @@
             font-size: 0.75rem;
             font-weight: 500;
         }
+        
+        .app-tag {
+            background: #ecfdf5;
+            color: #059669;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
 
         .token-info {
             display: flex;
@@ -279,14 +288,31 @@
     <header class="header">
         <div class="container">
             <div class="header-content">
-                <div class="logo">LLM API Recorder</div>
+                <div class="logo">{{ web_title }}</div>
                 <form class="search-box" method="get" action="/">
                     <input type="hidden" name="page" value="1">
-                    <input type="text" name="search" class="search-input" placeholder="搜索请求内容、模型、错误信息..." value="{{ search }}">
-                    <button type="submit" class="search-btn">搜索</button>
-                    {% if search %}
-                    <a href="/" class="search-btn" style="background: #6b7280; text-decoration: none;">清除</a>
-                    {% endif %}
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                        <input type="text" name="search" class="search-input" placeholder="搜索请求内容、模型、错误信息..." value="{{ search }}">
+                        
+                        <select name="model_filter" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
+                            <option value="">所有模型</option>
+                            {% for model in all_models %}
+                            <option value="{{ model }}" {% if model_filter == model %}selected{% endif %}>{{ model }}</option>
+                            {% endfor %}
+                        </select>
+                        
+                        <select name="app_filter" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
+                            <option value="">所有应用</option>
+                            {% for app in all_apps %}
+                            <option value="{{ app }}" {% if app_filter == app %}selected{% endif %}>{{ app }}</option>
+                            {% endfor %}
+                        </select>
+                        
+                        <button type="submit" class="search-btn">筛选</button>
+                        {% if search or model_filter or app_filter %}
+                        <a href="/" class="search-btn" style="background: #6b7280; text-decoration: none;">清除</a>
+                        {% endif %}
+                    </div>
                 </form>
             </div>
         </div>
@@ -298,20 +324,24 @@
             <div class="stats-bar">
                 <div class="stats-grid">
                     <div class="stat-item">
-                        <div class="stat-number">{{ result.total }}</div>
+                        <div class="stat-number">{{ stats.total_requests }}</div>
                         <div class="stat-label">总请求数</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ result.requests|selectattr('status_code', 'equalto', 200)|list|length }}</div>
-                        <div class="stat-label">成功请求</div>
+                        <div class="stat-number">{{ stats.total_input_tokens }}</div>
+                        <div class="stat-label">输入Token</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ result.requests|map(attribute='total_tokens')|sum }}</div>
+                        <div class="stat-number">{{ stats.total_output_tokens }}</div>
+                        <div class="stat-label">输出Token</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ stats.total_tokens }}</div>
                         <div class="stat-label">总Token消耗</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ "%.2f"|format(result.requests|map(attribute='duration')|select('number')|sum) }}s</div>
-                        <div class="stat-label">总处理时间</div>
+                        <div class="stat-number">{{ "%.3f"|format(stats.avg_duration) }}s</div>
+                        <div class="stat-label">平均处理时间</div>
                     </div>
                 </div>
             </div>
@@ -319,8 +349,17 @@
             <!-- 请求记录表格 -->
             <div class="requests-table">
                 <div class="table-header">
+                    {% if search or model_filter or app_filter %}
+                    筛选结果 ({{ result.total }} 条记录)
                     {% if search %}
-                    搜索结果: "{{ search }}" ({{ result.total }} 条记录)
+                    - 搜索: "{{ search }}"
+                    {% endif %}
+                    {% if model_filter %}
+                    - 模型: {{ model_filter }}
+                    {% endif %}
+                    {% if app_filter %}
+                    - 应用: {{ app_filter }}
+                    {% endif %}
                     {% else %}
                     请求记录 ({{ result.total }} 条记录)
                     {% endif %}
@@ -333,6 +372,7 @@
                             <th>ID</th>
                             <th>时间</th>
                             <th>模型</th>
+                            <th>应用</th>
                             <th>状态</th>
                             <th>Token使用</th>
                             <th>耗时</th>
@@ -350,6 +390,13 @@
                             </td>
                             <td>
                                 <span class="model-tag">{{ req.model }}</span>
+                            </td>
+                            <td>
+                                {% if req.app_name %}
+                                <span class="app-tag">{{ req.app_name }}</span>
+                                {% else %}
+                                <span style="color: #9ca3af; font-style: italic;">-</span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if req.status_code == 200 %}
@@ -379,21 +426,21 @@
                 {% if result.pages > 1 %}
                 <div class="pagination">
                     {% if current_page > 1 %}
-                    <a href="?page={{ current_page - 1 }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">上一页</a>
+                    <a href="?page={{ current_page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if model_filter %}&model_filter={{ model_filter }}{% endif %}{% if app_filter %}&app_filter={{ app_filter }}{% endif %}" class="page-btn">上一页</a>
                     {% endif %}
                     
                     {% for page_num in range(1, result.pages + 1) %}
                         {% if page_num == current_page %}
                         <span class="page-btn active">{{ page_num }}</span>
                         {% elif page_num <= 3 or page_num > result.pages - 3 or (page_num >= current_page - 2 and page_num <= current_page + 2) %}
-                        <a href="?page={{ page_num }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">{{ page_num }}</a>
+                        <a href="?page={{ page_num }}{% if search %}&search={{ search }}{% endif %}{% if model_filter %}&model_filter={{ model_filter }}{% endif %}{% if app_filter %}&app_filter={{ app_filter }}{% endif %}" class="page-btn">{{ page_num }}</a>
                         {% elif page_num == 4 or page_num == result.pages - 3 %}
                         <span class="page-btn">...</span>
                         {% endif %}
                     {% endfor %}
                     
                     {% if current_page < result.pages %}
-                    <a href="?page={{ current_page + 1 }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">下一页</a>
+                    <a href="?page={{ current_page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if model_filter %}&model_filter={{ model_filter }}{% endif %}{% if app_filter %}&app_filter={{ app_filter }}{% endif %}" class="page-btn">下一页</a>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -665,8 +712,8 @@
                                     <div class="param-value number">${data.duration ? data.duration.toFixed(3) + 's' : 'N/A'}</div>
                                 </div>
                                 <div class="param-item">
-                                    <div class="param-label">总Token</div>
-                                    <div class="param-value number">${data.total_tokens}</div>
+                                    <div class="param-label">应用</div>
+                                    <div class="param-value">${data.app_name || '-'}</div>
                                 </div>
                             </div>
                             ${data.error_message ? `<div style="background: #fef2f2; color: #dc2626; padding: 0.75rem; border-radius: 4px; margin-top: 1rem;"><strong>错误信息:</strong> ${data.error_message}</div>` : ''}

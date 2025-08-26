@@ -50,12 +50,21 @@ def verify_password(credentials: HTTPBasicCredentials = Depends(security)):
     return True
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = Query(None), 
+async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = Query(None),
+                   model_filter: str = Query(None), app_filter: str = Query(None),
                    authenticated: bool = Depends(verify_password)):
     """主页面 - 显示请求记录"""
     try:
         # 获取请求记录
-        result = db.get_requests(page=page, page_size=20, search=search)
+        result = db.get_requests(page=page, page_size=20, search=search, 
+                               model_filter=model_filter, app_filter=app_filter)
+        
+        # 获取统计信息
+        stats = db.get_statistics(search=search, model_filter=model_filter, app_filter=app_filter)
+        
+        # 获取筛选选项
+        all_models = db.get_unique_models()
+        all_apps = db.get_unique_apps()
         
         # 格式化数据用于显示
         for req in result['requests']:
@@ -74,8 +83,14 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "result": result,
+            "stats": stats,
+            "all_models": all_models,
+            "all_apps": all_apps,
             "search": search or "",
-            "current_page": page
+            "model_filter": model_filter or "",
+            "app_filter": app_filter or "",
+            "current_page": page,
+            "web_title": config.web_title
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -129,6 +144,9 @@ async def proxy_completions(request: Request):
         # 提取模型信息
         model = request_data.get('model', 'unknown')
         
+        # 提取应用名称（从X-Title头）
+        app_name = request.headers.get('X-Title', None)
+        
         # 估算输入tokens
         input_tokens = extract_tokens_from_request(request_data)
         
@@ -138,6 +156,7 @@ async def proxy_completions(request: Request):
         # 记录请求开始
         request_id = db.add_request(
             model=model,
+            app_name=app_name,
             request_content=cleaned_request_data,
             input_tokens=input_tokens,
             status_code=0  # 0表示正在处理
@@ -206,6 +225,9 @@ async def proxy_embeddings(request: Request):
         # 提取模型信息
         model = request_data.get('model', 'unknown')
         
+        # 提取应用名称（从X-Title头）
+        app_name = request.headers.get('X-Title', None)
+        
         # 估算输入tokens
         input_tokens = extract_tokens_from_request(request_data)
         
@@ -215,6 +237,7 @@ async def proxy_embeddings(request: Request):
         # 记录请求开始
         request_id = db.add_request(
             model=model,
+            app_name=app_name,
             request_content=cleaned_request_data,
             input_tokens=input_tokens,
             status_code=0  # 0表示正在处理
@@ -309,6 +332,9 @@ async def proxy_chat_completions(request: Request):
         # 提取模型信息
         model = request_data.get('model', 'unknown')
         
+        # 提取应用名称（从X-Title头）
+        app_name = request.headers.get('X-Title', None)
+        
         # 估算输入tokens
         input_tokens = extract_tokens_from_request(request_data)
         
@@ -318,6 +344,7 @@ async def proxy_chat_completions(request: Request):
         # 记录请求开始
         request_id = db.add_request(
             model=model,
+            app_name=app_name,
             request_content=cleaned_request_data,
             input_tokens=input_tokens,
             status_code=0  # 0表示正在处理

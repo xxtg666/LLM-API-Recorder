@@ -130,6 +130,7 @@ LLM-API-Recorder/
 - `port`: 服务器端口
 - `debug`: 是否启用调试模式
 - `access_password`: Web界面访问密码（留空则不需要密码）
+- `web_title`: Web界面标题
 
 ### 数据库配置
 - `db_path`: SQLite数据库文件路径
@@ -158,6 +159,7 @@ Web界面支持以下查询参数：
 - `id`: 请求ID
 - `timestamp`: 请求时间
 - `model`: 使用的模型
+- `app_name`: 请求头中的 X-Title 参数
 - `request_content`: 请求内容（JSON）
 - `response_content`: 响应内容（JSON）
 - `input_tokens`: 输入token数量
