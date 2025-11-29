@@ -282,6 +282,37 @@
                 padding: 0.5rem;
             }
         }
+        
+        /* finish_reason 徽章样式 */
+        .finish-reason-badge {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+        
+        .finish-reason-badge.stop, .finish-reason-badge.end_turn {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .finish-reason-badge.length {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .finish-reason-badge.tool_calls, .finish-reason-badge.function_call {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .finish-reason-badge.content_filter {
+            background: #fee2e2;
+            color: #991b1b;
+        }
     </style>
 </head>
 <body>
@@ -447,7 +478,12 @@
                 
                 {% else %}
                 <div class="no-data">
-                    {% if search %}
+                    {% if skip_list %}
+                    <div style="color: #6b7280;">
+                        <p>📋 正在查看请求详情</p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">关闭详情窗口后将加载请求列表</p>
+                    </div>
+                    {% elif search %}
                     没有找到包含 "{{ search }}" 的请求记录
                     {% else %}
                     暂无请求记录
@@ -524,6 +560,7 @@
             border: 1px solid #e1e5e9;
             max-height: 400px;
             overflow-y: auto;
+            overflow-x: hidden;
         }
         
         .message-item {
@@ -591,6 +628,8 @@
             line-height: 1.6;
             white-space: pre-wrap;
             word-wrap: break-word;
+            word-break: break-all;
+            overflow-wrap: anywhere;
         }
         
         .param-grid {
@@ -641,6 +680,8 @@
             line-height: 1.5;
             white-space: pre-wrap;
             word-wrap: break-word;
+            word-break: break-all;
+            overflow-wrap: anywhere;
             max-height: 400px;
             overflow-y: auto;
         }
@@ -675,6 +716,163 @@
             font-size: 0.8rem;
             color: #6b7280;
             margin-top: 0.25rem;
+        }
+        
+        /* 工具调用相关样式 */
+        .tools-section {
+            margin-top: 1rem;
+        }
+        
+        .tool-item {
+            background: white;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #8b5cf6;
+        }
+        
+        .tool-name {
+            font-weight: 600;
+            color: #7c3aed;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tool-description {
+            color: #6b7280;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
+        
+        .tool-params {
+            background: #f8fafc;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #374151;
+            white-space: pre-wrap;
+            word-break: break-all;
+            overflow-wrap: anywhere;
+        }
+        
+        .tool-call-item {
+            background: white;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .tool-call-name {
+            font-weight: 600;
+            color: #d97706;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tool-call-id {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .tool-result-item {
+            background: white;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #10b981;
+        }
+        
+        .tool-result-name {
+            font-weight: 600;
+            color: #059669;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+        }
+        
+        .collapsible-header:hover {
+            background-color: rgba(0,0,0,0.03);
+            border-radius: 4px;
+        }
+        
+        .collapsible-header::before {
+            content: '▼';
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+            color: #9ca3af;
+        }
+        
+        .collapsible-header.collapsed::before {
+            transform: rotate(-90deg);
+        }
+        
+        .collapsible-content {
+            margin-top: 0.5rem;
+        }
+        
+        .collapsible-content.hidden {
+            display: none;
+        }
+        
+        /* 原始JSON复制按钮样式 */
+        .raw-json-wrapper {
+            position: relative;
+        }
+        
+        .copy-json-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #4b5563;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: background-color 0.2s;
+            z-index: 10;
+        }
+        
+        .copy-json-btn:hover {
+            background: #374151;
+        }
+        
+        .copy-json-btn.copied {
+            background: #059669;
+        }
+        
+        .badge-count {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.1rem 0.4rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
         }
     </style>
 
@@ -749,8 +947,9 @@
                             <div id="request-formatted">
                                 ${formatRequestContent(requestData)}
                             </div>
-                            <div id="request-raw" class="raw-json hidden">
-                                ${JSON.stringify(requestData, null, 2)}
+                            <div id="request-raw" class="raw-json-wrapper hidden">
+                                <button class="copy-json-btn" onclick="copyJsonContent('request')">📋 复制</button>
+                                <pre class="raw-json" id="request-raw-content" style="margin: 0;">${escapeHtml(JSON.stringify(requestData, null, 2))}</pre>
                             </div>
                         </div>
                     </div>
@@ -769,8 +968,9 @@
                             <div id="response-formatted">
                                 ${formatResponseContent(responseData)}
                             </div>
-                            <div id="response-raw" class="raw-json hidden">
-                                ${JSON.stringify(responseData, null, 2)}
+                            <div id="response-raw" class="raw-json-wrapper hidden">
+                                <button class="copy-json-btn" onclick="copyJsonContent('response')">📋 复制</button>
+                                <pre class="raw-json" id="response-raw-content" style="margin: 0;">${escapeHtml(JSON.stringify(responseData, null, 2))}</pre>
                             </div>
                         </div>
                     </div>
@@ -789,39 +989,24 @@
                 html += '<div class="param-grid" style="margin-bottom: 1rem;">';
                 
                 if (requestData.model) {
-                    html += `
-                        <div class="param-item">
-                            <div class="param-label">模型</div>
-                            <div class="param-value">${requestData.model}</div>
-                        </div>
-                    `;
+                    html += '<div class="param-item"><div class="param-label">模型</div><div class="param-value">' + requestData.model + '</div></div>';
                 }
                 
                 if (requestData.temperature !== undefined) {
-                    html += `
-                        <div class="param-item">
-                            <div class="param-label">温度</div>
-                            <div class="param-value number">${requestData.temperature}</div>
-                        </div>
-                    `;
+                    html += '<div class="param-item"><div class="param-label">温度</div><div class="param-value number">' + requestData.temperature + '</div></div>';
                 }
                 
                 if (requestData.max_tokens !== undefined) {
-                    html += `
-                        <div class="param-item">
-                            <div class="param-label">最大Token</div>
-                            <div class="param-value number">${requestData.max_tokens}</div>
-                        </div>
-                    `;
+                    html += '<div class="param-item"><div class="param-label">最大Token</div><div class="param-value number">' + requestData.max_tokens + '</div></div>';
                 }
                 
                 if (requestData.stream !== undefined) {
-                    html += `
-                        <div class="param-item">
-                            <div class="param-label">流式</div>
-                            <div class="param-value boolean">${requestData.stream ? '是' : '否'}</div>
-                        </div>
-                    `;
+                    html += '<div class="param-item"><div class="param-label">流式</div><div class="param-value boolean">' + (requestData.stream ? '是' : '否') + '</div></div>';
+                }
+                
+                // 显示是否启用工具
+                if (requestData.tools && requestData.tools.length > 0) {
+                    html += '<div class="param-item"><div class="param-label">可用工具</div><div class="param-value"><span class="badge-count">' + requestData.tools.length + ' 个</span></div></div>';
                 }
                 
                 html += '</div>';
@@ -832,36 +1017,125 @@
                 html += '<div style="margin-top: 1rem;"><h5 style="margin-bottom: 0.75rem; color: #374151;">对话消息</h5>';
                 requestData.messages.forEach((message, index) => {
                     const role = message.role || 'unknown';
-                    const content = formatMessageContent(message.content);
                     
-                    html += `
-                        <div class="message-item ${role}">
-                            <div class="message-role ${role}" onclick="toggleMessage(${index})" id="role-${index}">
-                                ${getRoleDisplayName(role)}
-                            </div>
-                            <div class="message-content" id="content-${index}">${content}</div>
-                        </div>
-                    `;
+                    // 处理工具调用结果消息（tool角色）
+                    if (role === 'tool') {
+                        html += '<div class="tool-result-item">' +
+                            '<div class="tool-result-name">📥 工具返回结果' +
+                            (message.tool_call_id ? '<span class="tool-call-id">ID: ' + message.tool_call_id + '</span>' : '') +
+                            '</div>' +
+                            '<div class="tool-params" style="margin-top: 0.5rem;">' + formatToolContent(message.content) + '</div>' +
+                            '</div>';
+                        return;
+                    }
+                    
+                    // 处理带有tool_calls的assistant消息
+                    if (role === 'assistant' && message.tool_calls && message.tool_calls.length > 0) {
+                        html += '<div class="message-item ' + role + '">' +
+                            '<div class="message-role ' + role + '" onclick="toggleMessage(' + index + ')" id="role-' + index + '">' +
+                            getRoleDisplayName(role) +
+                            '</div>' +
+                            '<div class="message-content" id="content-' + index + '">' +
+                            (message.content ? formatMessageContent(message.content) + '<br><br>' : '') +
+                            '<div style="margin-top: 0.5rem;"><strong style="color: #d97706;">🔧 工具调用:</strong></div>';
+                        message.tool_calls.forEach((toolCall, tcIndex) => {
+                            html += formatToolCall(toolCall, index + '-' + tcIndex);
+                        });
+                        html += '</div></div>';
+                        return;
+                    }
+                    
+                    const content = formatMessageContent(message.content);
+                    html += '<div class="message-item ' + role + '">' +
+                        '<div class="message-role ' + role + '" onclick="toggleMessage(' + index + ')" id="role-' + index + '">' +
+                        getRoleDisplayName(role) +
+                        '</div>' +
+                        '<div class="message-content" id="content-' + index + '">' + content + '</div>' +
+                        '</div>';
                 });
                 html += '</div>';
             }
             
             // 如果有prompt字段（非chat接口）
             if (requestData.prompt) {
-                html += `
-                    <div style="margin-top: 1rem;">
-                        <h5 style="margin-bottom: 0.75rem; color: #374151;">提示词</h5>
-                        <div class="message-item">
-                            <div class="message-role" onclick="toggleMessage('prompt')" id="role-prompt">
-                                📝 提示词内容
-                            </div>
-                            <div class="message-content" id="content-prompt">${formatMessageContent(requestData.prompt)}</div>
-                        </div>
-                    </div>
-                `;
+                html += '<div style="margin-top: 1rem;">' +
+                    '<h5 style="margin-bottom: 0.75rem; color: #374151;">提示词</h5>' +
+                    '<div class="message-item">' +
+                    '<div class="message-role" onclick="toggleMessage(\'prompt\')" id="role-prompt">📝 提示词内容</div>' +
+                    '<div class="message-content" id="content-prompt">' + formatMessageContent(requestData.prompt) + '</div>' +
+                    '</div></div>';
+            }
+            
+            // 显示可用工具列表（放在最后）
+            if (requestData.tools && Array.isArray(requestData.tools) && requestData.tools.length > 0) {
+                html += '<div class="tools-section" style="margin-top: 1rem;">' +
+                    '<div class="collapsible-header collapsed" onclick="toggleCollapsible(\'available-tools\')" id="header-available-tools">' +
+                    '<h5 style="color: #7c3aed; margin: 0;">🔧 可用工具 <span class="badge-count">' + requestData.tools.length + '</span></h5>' +
+                    '</div>' +
+                    '<div class="collapsible-content hidden" id="content-available-tools">';
+                requestData.tools.forEach((tool, index) => {
+                    if (tool.type === 'function' && tool.function) {
+                        const func = tool.function;
+                        html += '<div class="tool-item">' +
+                            '<div class="tool-name">🛠️ ' + (func.name || 'unnamed') + '</div>' +
+                            (func.description ? '<div class="tool-description">' + func.description + '</div>' : '') +
+                            (func.parameters ? '<div class="collapsible-header collapsed" onclick="event.stopPropagation(); toggleCollapsible(\'tool-params-' + index + '\')" id="header-tool-params-' + index + '" style="font-size: 0.8rem; color: #6b7280; margin-top: 0.5rem;">参数定义</div>' +
+                            '<div class="collapsible-content hidden" id="content-tool-params-' + index + '"><div class="tool-params">' + JSON.stringify(func.parameters, null, 2) + '</div></div>' : '') +
+                            '</div>';
+                    }
+                });
+                html += '</div></div>';
             }
             
             return html;
+        }
+        
+        function formatToolCall(toolCall, idPrefix) {
+            const func = toolCall.function || {};
+            let args = '';
+            try {
+                if (func.arguments) {
+                    const parsed = JSON.parse(func.arguments);
+                    args = JSON.stringify(parsed, null, 2);
+                }
+            } catch (e) {
+                args = func.arguments || '';
+            }
+            
+            return '<div class="tool-call-item" style="margin-top: 0.5rem;">' +
+                '<div class="tool-call-name">📤 ' + (func.name || 'unknown') +
+                (toolCall.id ? '<span class="tool-call-id">ID: ' + toolCall.id + '</span>' : '') +
+                '</div>' +
+                (args ? '<div class="collapsible-header" onclick="event.stopPropagation(); toggleCollapsible(\'tool-call-args-' + idPrefix + '\')" id="header-tool-call-args-' + idPrefix + '" style="font-size: 0.8rem; color: #6b7280; margin-top: 0.5rem;">调用参数</div>' +
+                '<div class="collapsible-content" id="content-tool-call-args-' + idPrefix + '"><div class="tool-params">' + args + '</div></div>' : '') +
+                '</div>';
+        }
+        
+        function formatToolContent(content) {
+            if (typeof content === 'string') {
+                try {
+                    const parsed = JSON.parse(content);
+                    return JSON.stringify(parsed, null, 2);
+                } catch (e) {
+                    return content;
+                }
+            }
+            return JSON.stringify(content, null, 2);
+        }
+        
+        function toggleCollapsible(id) {
+            const header = document.getElementById(`header-${id}`);
+            const content = document.getElementById(`content-${id}`);
+            
+            if (header && content) {
+                if (content.classList.contains('hidden')) {
+                    content.classList.remove('hidden');
+                    header.classList.remove('collapsed');
+                } else {
+                    content.classList.add('hidden');
+                    header.classList.add('collapsed');
+                }
+            }
         }
         
         function formatResponseContent(responseData) {
@@ -871,27 +1145,36 @@
             if (responseData.choices && Array.isArray(responseData.choices)) {
                 html += '<div><h5 style="margin-bottom: 0.75rem; color: #374151;">响应内容</h5>';
                 responseData.choices.forEach((choice, index) => {
+                    const finishReason = choice.finish_reason;
+                    const finishReasonBadge = finishReason ? '<span class="finish-reason-badge ' + finishReason + '">' + getFinishReasonDisplay(finishReason) + '</span>' : '';
+                    
                     if (choice.message) {
                         const role = choice.message.role || 'assistant';
-                        const content = formatMessageContent(choice.message.content);
+                        const message = choice.message;
                         
-                        html += `
-                            <div class="message-item ${role}">
-                                <div class="message-role ${role}" onclick="toggleMessage('response-${index}')" id="role-response-${index}">
-                                    ${getRoleDisplayName(role)}
-                                </div>
-                                <div class="message-content" id="content-response-${index}">${content}</div>
-                            </div>
-                        `;
+                        // 检查是否有工具调用
+                        if (message.tool_calls && message.tool_calls.length > 0) {
+                            html += '<div class="message-item ' + role + '">' +
+                                '<div class="message-role ' + role + '" onclick="toggleMessage(\'response-' + index + '\')" id="role-response-' + index + '">' +
+                                getRoleDisplayName(role) + ' <span class="badge-count">包含工具调用</span>' + finishReasonBadge + '</div>' +
+                                '<div class="message-content" id="content-response-' + index + '">' +
+                                (message.content ? formatMessageContent(message.content) + '<br><br>' : '<span style="color: #9ca3af; font-style: italic;">模型选择调用工具而非直接回复</span><br><br>') +
+                                '<div style="margin-top: 0.5rem;"><strong style="color: #d97706;">🔧 工具调用:</strong></div>';
+                            message.tool_calls.forEach((toolCall, tcIndex) => {
+                                html += formatToolCall(toolCall, 'response-' + index + '-' + tcIndex);
+                            });
+                            html += '</div></div>';
+                        } else {
+                            const content = formatMessageContent(message.content);
+                            html += '<div class="message-item ' + role + '">' +
+                                '<div class="message-role ' + role + '" onclick="toggleMessage(\'response-' + index + '\')" id="role-response-' + index + '">' +
+                                getRoleDisplayName(role) + finishReasonBadge + '</div>' +
+                                '<div class="message-content" id="content-response-' + index + '">' + content + '</div></div>';
+                        }
                     } else if (choice.text) {
-                        html += `
-                            <div class="message-item">
-                                <div class="message-role" onclick="toggleMessage('response-text-${index}')" id="role-response-text-${index}">
-                                    📝 响应文本
-                                </div>
-                                <div class="message-content" id="content-response-text-${index}">${formatMessageContent(choice.text)}</div>
-                            </div>
-                        `;
+                        html += '<div class="message-item">' +
+                            '<div class="message-role" onclick="toggleMessage(\'response-text-' + index + '\')" id="role-response-text-' + index + '">📝 响应文本' + finishReasonBadge + '</div>' +
+                            '<div class="message-content" id="content-response-text-' + index + '">' + formatMessageContent(choice.text) + '</div></div>';
                     }
                 });
                 html += '</div>';
@@ -899,28 +1182,28 @@
             
             // 显示使用统计
             if (responseData.usage) {
-                html += `
-                    <div style="margin-top: 1rem;">
-                        <h5 style="margin-bottom: 0.75rem; color: #374151;">使用统计</h5>
-                        <div class="usage-stats">
-                            <div class="usage-item">
-                                <span class="usage-number">${responseData.usage.prompt_tokens || 0}</span>
-                                <div class="usage-label">输入Token</div>
-                            </div>
-                            <div class="usage-item">
-                                <span class="usage-number">${responseData.usage.completion_tokens || 0}</span>
-                                <div class="usage-label">输出Token</div>
-                            </div>
-                            <div class="usage-item">
-                                <span class="usage-number">${responseData.usage.total_tokens || 0}</span>
-                                <div class="usage-label">总Token</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                html += '<div style="margin-top: 1rem;">' +
+                    '<h5 style="margin-bottom: 0.75rem; color: #374151;">使用统计</h5>' +
+                    '<div class="usage-stats">' +
+                    '<div class="usage-item"><span class="usage-number">' + (responseData.usage.prompt_tokens || 0) + '</span><div class="usage-label">输入Token</div></div>' +
+                    '<div class="usage-item"><span class="usage-number">' + (responseData.usage.completion_tokens || 0) + '</span><div class="usage-label">输出Token</div></div>' +
+                    '<div class="usage-item"><span class="usage-number">' + (responseData.usage.total_tokens || 0) + '</span><div class="usage-label">总Token</div></div>' +
+                    '</div></div>';
             }
             
             return html;
+        }
+        
+        function getFinishReasonDisplay(reason) {
+            const reasonMap = {
+                'stop': '✅ 正常结束',
+                'length': '📏 长度限制',
+                'tool_calls': '🔧 工具调用',
+                'content_filter': '🚫 内容过滤',
+                'function_call': '📞 函数调用',
+                'end_turn': '✅ 结束回合'
+            };
+            return reasonMap[reason] || reason;
         }
         
         function formatMessageContent(content) {
@@ -937,31 +1220,19 @@
                         const imageUrl = item.image_url.url;
                         // 检查是否是图片占位符
                         if (imageUrl.startsWith('[图片占位符:')) {
-                            return `
-                                <div style="margin: 0.5rem 0; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; border: 1px solid #d1d5db;">
-                                    <div style="font-size: 0.85rem; color: #6b7280; display: flex; align-items: center; gap: 0.5rem;">
-                                        <span style="font-size: 1.2rem;">🖼️</span>
-                                        <span>${imageUrl}</span>
-                                    </div>
-                                </div>
-                            `;
+                            return '<div style="margin: 0.5rem 0; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; border: 1px solid #d1d5db;">' +
+                                '<div style="font-size: 0.85rem; color: #6b7280; display: flex; align-items: center; gap: 0.5rem;">' +
+                                '<span style="font-size: 1.2rem;">🖼️</span><span>' + imageUrl + '</span></div></div>';
                         } else if (imageUrl.startsWith('data:image/')) {
                             // 如果还有base64图片（旧数据），显示占位符
-                            return `
-                                <div style="margin: 0.5rem 0; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; border: 1px solid #d1d5db;">
-                                    <div style="font-size: 0.85rem; color: #6b7280; display: flex; align-items: center; gap: 0.5rem;">
-                                        <span style="font-size: 1.2rem;">🖼️</span>
-                                        <span>[图片内容 - 已省略显示]</span>
-                                    </div>
-                                </div>
-                            `;
+                            return '<div style="margin: 0.5rem 0; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; border: 1px solid #d1d5db;">' +
+                                '<div style="font-size: 0.85rem; color: #6b7280; display: flex; align-items: center; gap: 0.5rem;">' +
+                                '<span style="font-size: 1.2rem;">🖼️</span><span>[图片内容 - 已省略显示]</span></div></div>';
                         } else {
-                            return `
-                                <div style="margin: 0.5rem 0;">
-                                    <div style="font-size: 0.85rem; color: #6b7280; margin-bottom: 0.25rem;">📷 图片链接：</div>
-                                    <a href="${imageUrl}" target="_blank" style="color: #3b82f6; text-decoration: underline;">${imageUrl.length > 50 ? imageUrl.substring(0, 50) + '...' : imageUrl}</a>
-                                </div>
-                            `;
+                            return '<div style="margin: 0.5rem 0;">' +
+                                '<div style="font-size: 0.85rem; color: #6b7280; margin-bottom: 0.25rem;">📷 图片链接：</div>' +
+                                '<a href="' + imageUrl + '" target="_blank" style="color: #3b82f6; text-decoration: underline;">' + 
+                                (imageUrl.length > 50 ? imageUrl.substring(0, 50) + '...' : imageUrl) + '</a></div>';
                         }
                     }
                     return JSON.stringify(item);
@@ -975,9 +1246,38 @@
                 'user': '👤 用户',
                 'assistant': '🤖 助手',
                 'system': '⚙️ 系统',
-                'function': '🔧 函数'
+                'function': '🔧 函数',
+                'tool': '🔧 工具'
             };
             return roleNames[role] || role;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function copyJsonContent(type) {
+            const contentElement = document.getElementById(`${type}-raw-content`);
+            if (contentElement) {
+                const text = contentElement.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    // 找到对应的复制按钮
+                    const btn = contentElement.parentElement.querySelector('.copy-json-btn');
+                    if (btn) {
+                        const originalText = btn.innerHTML;
+                        btn.innerHTML = '✅ 已复制';
+                        btn.classList.add('copied');
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.classList.remove('copied');
+                        }, 2000);
+                    }
+                }).catch(err => {
+                    alert('复制失败: ' + err);
+                });
+            }
         }
         
         function toggleView(type, button) {
@@ -1013,6 +1313,8 @@
         }
         
         let currentRequestId = null;
+        let skipListLoaded = {{ 'true' if skip_list else 'false' }};
+        let needsReload = skipListLoaded;
         
         function copyRequestLink() {
             if (currentRequestId) {
@@ -1055,6 +1357,15 @@
         
         function closeRequestDetail() {
             document.getElementById('requestModal').style.display = 'none';
+            
+            // 如果是通过?request=参数打开的，关闭时加载列表
+            if (needsReload) {
+                needsReload = false;
+                // 清除URL中的request参数并刷新页面
+                const url = new URL(window.location);
+                url.searchParams.delete('request');
+                window.location.href = url.toString();
+            }
         }
         
         // 点击模态框外部关闭
@@ -1073,11 +1384,10 @@
         
         // 页面初始化
         document.addEventListener('DOMContentLoaded', function() {
-            // 检查URL参数，支持直接打开请求详情
-            const urlParams = new URLSearchParams(window.location.search);
-            const requestId = urlParams.get('request');
-            if (requestId) {
-                showRequestDetail(requestId);
+            // 检查是否有初始请求ID需要显示
+            const initialRequestId = {{ initial_request_id if initial_request_id else 'null' }};
+            if (initialRequestId) {
+                showRequestDetail(initialRequestId);
             }
         });
     </script>

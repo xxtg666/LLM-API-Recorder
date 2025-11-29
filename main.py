@@ -40,8 +40,10 @@ app.add_middleware(
     allow_headers=["*"],  # 允许所有头
 )
 
-# 设置模板
+# 设置模板（启用空白控制，减少HTML输出中的多余空行）
 templates = Jinja2Templates(directory="templates")
+templates.env.trim_blocks = True
+templates.env.lstrip_blocks = True
 
 # HTTP基本认证
 security = HTTPBasic()
@@ -62,33 +64,44 @@ def verify_password(credentials: HTTPBasicCredentials = Depends(security)):
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = Query(None),
                    model_filter: str = Query(None), app_filter: str = Query(None),
+                   request_id: int = Query(None, alias="request"),
                    authenticated: bool = Depends(verify_password)):
     """主页面 - 显示请求记录"""
     try:
-        # 获取请求记录
-        result = db.get_requests(page=page, page_size=20, search=search, 
-                               model_filter=model_filter, app_filter=app_filter)
+        # 如果有request参数，跳过获取请求列表（延迟加载）
+        skip_list = request_id is not None
         
-        # 获取统计信息
-        stats = db.get_statistics(search=search, model_filter=model_filter, app_filter=app_filter)
-        
-        # 获取筛选选项
-        all_models = db.get_unique_models()
-        all_apps = db.get_unique_apps()
-        
-        # 格式化数据用于显示
-        for req in result['requests']:
-            req['formatted_duration'] = format_duration(req['duration'] or 0)
-            req['formatted_input_tokens'] = format_tokens(req['input_tokens'])
-            req['formatted_output_tokens'] = format_tokens(req['output_tokens'])
-            req['formatted_total_tokens'] = format_tokens(req['total_tokens'])
+        if skip_list:
+            # 返回空列表，前端关闭详情后再加载
+            result = {'total': 0, 'page': 1, 'page_size': 20, 'pages': 0, 'requests': []}
+            stats = {'total_requests': 0, 'total_input_tokens': 0, 'total_output_tokens': 0, 'total_tokens': 0, 'avg_duration': 0}
+            all_models = []
+            all_apps = []
+        else:
+            # 获取请求记录
+            result = db.get_requests(page=page, page_size=20, search=search, 
+                                   model_filter=model_filter, app_filter=app_filter)
             
-            # 截断请求内容用于预览
-            if req['request_content'] and req['request_content'].get('messages'):
-                last_message = req['request_content']['messages'][-1]
-                req['preview_content'] = truncate_text(last_message.get('content', ''))
-            else:
-                req['preview_content'] = "No content"
+            # 获取统计信息
+            stats = db.get_statistics(search=search, model_filter=model_filter, app_filter=app_filter)
+            
+            # 获取筛选选项
+            all_models = db.get_unique_models()
+            all_apps = db.get_unique_apps()
+            
+            # 格式化数据用于显示
+            for req in result['requests']:
+                req['formatted_duration'] = format_duration(req['duration'] or 0)
+                req['formatted_input_tokens'] = format_tokens(req['input_tokens'])
+                req['formatted_output_tokens'] = format_tokens(req['output_tokens'])
+                req['formatted_total_tokens'] = format_tokens(req['total_tokens'])
+                
+                # 截断请求内容用于预览
+                if req['request_content'] and req['request_content'].get('messages'):
+                    last_message = req['request_content']['messages'][-1]
+                    req['preview_content'] = truncate_text(last_message.get('content', ''))
+                else:
+                    req['preview_content'] = "No content"
         
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
@@ -100,8 +113,40 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             "model_filter": model_filter or "",
             "app_filter": app_filter or "",
             "current_page": page,
-            "web_title": config.web_title
+            "web_title": config.web_title,
+            "skip_list": skip_list,
+            "initial_request_id": request_id
         })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/requests")
+async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None),
+                          model_filter: str = Query(None), app_filter: str = Query(None),
+                          authenticated: bool = Depends(verify_password)):
+    """获取请求列表API"""
+    try:
+        result = db.get_requests(page=page, page_size=20, search=search, 
+                               model_filter=model_filter, app_filter=app_filter)
+        
+        stats = db.get_statistics(search=search, model_filter=model_filter, app_filter=app_filter)
+        
+        all_models = db.get_unique_models()
+        all_apps = db.get_unique_apps()
+        
+        # 格式化数据
+        for req in result['requests']:
+            req['formatted_duration'] = format_duration(req['duration'] or 0)
+            req['formatted_input_tokens'] = format_tokens(req['input_tokens'])
+            req['formatted_output_tokens'] = format_tokens(req['output_tokens'])
+            req['formatted_total_tokens'] = format_tokens(req['total_tokens'])
+        
+        return {
+            "result": result,
+            "stats": stats,
+            "all_models": all_models,
+            "all_apps": all_apps
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
