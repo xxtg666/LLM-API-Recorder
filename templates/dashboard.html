@@ -250,6 +250,39 @@
             cursor: not-allowed;
         }
 
+        .loading-cell {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+
+        .loading-dots {
+            display: inline-flex;
+            gap: 0.15rem;
+            margin-left: 0.25rem;
+        }
+
+        .loading-dots span {
+            width: 6px;
+            height: 6px;
+            background: #2c5aa0;
+            border-radius: 50%;
+            animation: blink 1s infinite ease-in-out;
+        }
+
+        .loading-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes blink {
+            0%, 80%, 100% { opacity: 0.2; }
+            40% { opacity: 1; }
+        }
+
         .no-data {
             text-align: center;
             padding: 3rem;
@@ -355,23 +388,23 @@
             <div class="stats-bar">
                 <div class="stats-grid">
                     <div class="stat-item">
-                        <div class="stat-number">{{ stats.total_requests }}</div>
+                        <div class="stat-number" id="stat-total-requests">{{ stats.total_requests }}</div>
                         <div class="stat-label">总请求数</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ stats.total_input_tokens }}</div>
+                        <div class="stat-number" id="stat-input-tokens">{{ stats.total_input_tokens }}</div>
                         <div class="stat-label">输入Token</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ stats.total_output_tokens }}</div>
+                        <div class="stat-number" id="stat-output-tokens">{{ stats.total_output_tokens }}</div>
                         <div class="stat-label">输出Token</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ stats.total_tokens }}</div>
+                        <div class="stat-number" id="stat-total-tokens">{{ stats.total_tokens }}</div>
                         <div class="stat-label">总Token消耗</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number">{{ "%.3f"|format(stats.avg_duration) }}s</div>
+                        <div class="stat-number" id="stat-avg-duration">{{ "%.3f"|format(stats.avg_duration) }}s</div>
                         <div class="stat-label">平均处理时间</div>
                     </div>
                 </div>
@@ -381,7 +414,7 @@
             <div class="requests-table">
                 <div class="table-header">
                     {% if search or model_filter or app_filter %}
-                    筛选结果 ({{ result.total }} 条记录)
+                    筛选结果 (<span id="header-total">{{ result.total }}</span> 条记录)
                     {% if search %}
                     - 搜索: "{{ search }}"
                     {% endif %}
@@ -392,104 +425,61 @@
                     - 应用: {{ app_filter }}
                     {% endif %}
                     {% else %}
-                    请求记录 ({{ result.total }} 条记录)
+                    请求记录 (<span id="header-total">{{ result.total }}</span> 条记录)
                     {% endif %}
                 </div>
                 
-                {% if result.requests %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>时间</th>
-                            <th>模型</th>
-                            <th>应用</th>
-                            <th>状态</th>
-                            <th>Token使用</th>
-                            <th>耗时</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for req in result.requests %}
-                        <tr class="request-row" onclick="showRequestDetail({{ req.id }})">
-                            <td>
-                                <span class="request-id">#{{ req.id }}</span>
-                            </td>
-                            <td>
-                                <small style="color: #6b7280;">{{ req.timestamp.split('T')[0] }}</small><br>
-                                {{ req.timestamp.split('T')[1].split('.')[0] }}
-                            </td>
-                            <td>
-                                <span class="model-tag">{{ req.model }}</span>
-                            </td>
-                            <td>
-                                {% if req.app_name %}
-                                <span class="app-tag">{{ req.app_name }}</span>
-                                {% else %}
-                                <span style="color: #9ca3af; font-style: italic;">-</span>
+                <div id="requests-table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>时间</th>
+                                <th>模型</th>
+                                <th>应用</th>
+                                <th>状态</th>
+                                <th>Token使用</th>
+                                <th>耗时</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requests-tbody">
+                            {% if not skip_list and result.requests %}
+                                {% for req in result.requests %}
+                                <tr class="request-row" onclick="showRequestDetail({{ req.id }})">
+                                    <td><span class="request-id">#{{ req.id }}</span></td>
+                                    <td><small style="color: #6b7280;">{{ req.timestamp.split('T')[0] }}</small><br>{{ req.timestamp.split('T')[1].split('.')[0] }}</td>
+                                    <td><span class="model-tag">{{ req.model }}</span></td>
+                                    <td>{% if req.app_name %}<span class="app-tag">{{ req.app_name }}</span>{% else %}<span style="color: #9ca3af; font-style: italic;">-</span>{% endif %}</td>
+                                    <td>{% if req.status_code == 200 %}<span class="status-badge status-success">成功</span>{% elif req.status_code == 0 %}<span class="status-badge status-pending">处理中</span>{% else %}<span class="status-badge status-error">错误</span>{% endif %}</td>
+                                    <td><div class="token-info"><span class="token-item">输入: {{ req.formatted_input_tokens }}</span><span class="token-item">输出: {{ req.formatted_output_tokens }}</span><span class="token-item">总计: {{ req.formatted_total_tokens }}</span></div></td>
+                                    <td><span class="duration">{{ req.formatted_duration }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td class="loading-cell" colspan="7">正在加载请求列表<div class="loading-dots"><span></span><span></span><span></span></div></td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    <div class="pagination" id="pagination-container">
+                        {% if not skip_list and result.pages > 1 %}
+                            {% if current_page > 1 %}
+                            <a href="?page={{ current_page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if model_filter %}&model_filter={{ model_filter }}{% endif %}{% if app_filter %}&app_filter={{ app_filter }}{% endif %}" class="page-btn">上一页</a>
+                            {% endif %}
+                            {% for page_num in range(1, result.pages + 1) %}
+                                {% if page_num == current_page %}
+                                <span class="page-btn active">{{ page_num }}</span>
+                                {% elif page_num <= 3 or page_num > result.pages - 3 or (page_num >= current_page - 2 and page_num <= current_page + 2) %}
+                                <a href="?page={{ page_num }}{% if search %}&search={{ search }}{% endif %}{% if model_filter %}&model_filter={{ model_filter }}{% endif %}{% if app_filter %}&app_filter={{ app_filter }}{% endif %}" class="page-btn">{{ page_num }}</a>
+                                {% elif page_num == 4 or page_num == result.pages - 3 %}
+                                <span class="page-btn">...</span>
                                 {% endif %}
-                            </td>
-                            <td>
-                                {% if req.status_code == 200 %}
-                                <span class="status-badge status-success">成功</span>
-                                {% elif req.status_code == 0 %}
-                                <span class="status-badge status-pending">处理中</span>
-                                {% else %}
-                                <span class="status-badge status-error">错误</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="token-info">
-                                    <span class="token-item">输入: {{ req.formatted_input_tokens }}</span>
-                                    <span class="token-item">输出: {{ req.formatted_output_tokens }}</span>
-                                    <span class="token-item">总计: {{ req.formatted_total_tokens }}</span>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="duration">{{ req.formatted_duration }}</span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                
-                <!-- 分页 -->
-                {% if result.pages > 1 %}
-                <div class="pagination">
-                    {% if current_page > 1 %}
-                    <a href="?page={{ current_page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if model_filter %}&model_filter={{ model_filter }}{% endif %}{% if app_filter %}&app_filter={{ app_filter }}{% endif %}" class="page-btn">上一页</a>
-                    {% endif %}
-                    
-                    {% for page_num in range(1, result.pages + 1) %}
-                        {% if page_num == current_page %}
-                        <span class="page-btn active">{{ page_num }}</span>
-                        {% elif page_num <= 3 or page_num > result.pages - 3 or (page_num >= current_page - 2 and page_num <= current_page + 2) %}
-                        <a href="?page={{ page_num }}{% if search %}&search={{ search }}{% endif %}{% if model_filter %}&model_filter={{ model_filter }}{% endif %}{% if app_filter %}&app_filter={{ app_filter }}{% endif %}" class="page-btn">{{ page_num }}</a>
-                        {% elif page_num == 4 or page_num == result.pages - 3 %}
-                        <span class="page-btn">...</span>
+                            {% endfor %}
+                            {% if current_page < result.pages %}
+                            <a href="?page={{ current_page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if model_filter %}&model_filter={{ model_filter }}{% endif %}{% if app_filter %}&app_filter={{ app_filter }}{% endif %}" class="page-btn">下一页</a>
+                            {% endif %}
                         {% endif %}
-                    {% endfor %}
-                    
-                    {% if current_page < result.pages %}
-                    <a href="?page={{ current_page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if model_filter %}&model_filter={{ model_filter }}{% endif %}{% if app_filter %}&app_filter={{ app_filter }}{% endif %}" class="page-btn">下一页</a>
-                    {% endif %}
-                </div>
-                {% endif %}
-                
-                {% else %}
-                <div class="no-data">
-                    {% if skip_list %}
-                    <div style="color: #6b7280;">
-                        <p>📋 正在查看请求详情</p>
-                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">关闭详情窗口后将加载请求列表</p>
                     </div>
-                    {% elif search %}
-                    没有找到包含 "{{ search }}" 的请求记录
-                    {% else %}
-                    暂无请求记录
-                    {% endif %}
                 </div>
-                {% endif %}
             </div>
         </div>
     </main>
@@ -1315,6 +1305,164 @@
         let currentRequestId = null;
         let skipListLoaded = {{ 'true' if skip_list else 'false' }};
         let needsReload = skipListLoaded;
+        let listLoaded = false;
+
+        function buildQueryParams(pageOverride) {
+            const params = new URLSearchParams(window.location.search);
+            if (pageOverride) params.set('page', pageOverride);
+            params.delete('request');
+            return params;
+        }
+
+        function renderStats(stats) {
+            document.getElementById('stat-total-requests').textContent = stats.total_requests;
+            document.getElementById('stat-input-tokens').textContent = stats.total_input_tokens;
+            document.getElementById('stat-output-tokens').textContent = stats.total_output_tokens;
+            document.getElementById('stat-total-tokens').textContent = stats.total_tokens;
+            document.getElementById('stat-avg-duration').textContent = (stats.avg_duration || 0).toFixed(3) + 's';
+        }
+
+        function renderHeaderTotal(total) {
+            const el = document.getElementById('header-total');
+            if (el) el.textContent = total;
+        }
+
+        function renderPagination(result) {
+            const container = document.getElementById('pagination-container');
+            if (!container) return;
+            if (result.pages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            const params = new URLSearchParams(window.location.search);
+            params.delete('request');
+            const currentPage = result.page;
+            const parts = [];
+            const linkFor = (page) => {
+                params.set('page', page);
+                return `?${params.toString()}`;
+            };
+            if (currentPage > 1) {
+                parts.push(`<a href="${linkFor(currentPage - 1)}" class="page-btn">上一页</a>`);
+            }
+            for (let pageNum = 1; pageNum <= result.pages; pageNum++) {
+                if (pageNum === currentPage) {
+                    parts.push(`<span class="page-btn active">${pageNum}</span>`);
+                } else if (pageNum <= 3 || pageNum > result.pages - 3 || (pageNum >= currentPage - 2 && pageNum <= currentPage + 2)) {
+                    parts.push(`<a href="${linkFor(pageNum)}" class="page-btn">${pageNum}</a>`);
+                } else if (pageNum === 4 || pageNum === result.pages - 3) {
+                    parts.push('<span class="page-btn">...</span>');
+                }
+            }
+            if (currentPage < result.pages) {
+                parts.push(`<a href="${linkFor(currentPage + 1)}" class="page-btn">下一页</a>`);
+            }
+            container.innerHTML = parts.join('');
+        }
+
+        function statusBadge(code) {
+            if (code === 200) return '<span class="status-badge status-success">成功</span>';
+            if (code === 0) return '<span class="status-badge status-pending">处理中</span>';
+            return '<span class="status-badge status-error">错误</span>';
+        }
+
+        function renderRequestsIncremental(result) {
+            const tbody = document.getElementById('requests-tbody');
+            if (!tbody) return;
+            if (!result.requests || result.requests.length === 0) {
+                tbody.innerHTML = '<tr><td class="loading-cell" colspan="7">暂无请求记录</td></tr>';
+                renderPagination({ pages: 0, page: 1 });
+                renderHeaderTotal(0);
+                listLoaded = true;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            const list = result.requests;
+            const batchSize = 10;
+            let index = 0;
+
+            const renderBatch = () => {
+                const rows = [];
+                for (let i = 0; i < batchSize && index < list.length; i++, index++) {
+                    const req = list[index];
+                    const timestamp = req.timestamp ? req.timestamp.split('T') : ['',''];
+                    const date = timestamp[0] || '';
+                    const time = (timestamp[1] || '').split('.')[0] || '';
+                    const app = req.app_name ? `<span class="app-tag">${req.app_name}</span>` : '<span style="color: #9ca3af; font-style: italic;">-</span>';
+                    rows.push(`<tr class="request-row" onclick="showRequestDetail(${req.id})">
+                        <td><span class="request-id">#${req.id}</span></td>
+                        <td><small style="color: #6b7280;">${date}</small><br>${time}</td>
+                        <td><span class="model-tag">${req.model}</span></td>
+                        <td>${app}</td>
+                        <td>${statusBadge(req.status_code)}</td>
+                        <td><div class="token-info"><span class="token-item">输入: ${req.formatted_input_tokens || req.input_tokens || 0}</span><span class="token-item">输出: ${req.formatted_output_tokens || req.output_tokens || 0}</span><span class="token-item">总计: ${req.formatted_total_tokens || req.total_tokens || 0}</span></div></td>
+                        <td><span class="duration">${req.formatted_duration || ''}</span></td>
+                    </tr>`);
+                }
+                tbody.insertAdjacentHTML('beforeend', rows.join(''));
+                if (index < list.length) {
+                    requestAnimationFrame(renderBatch);
+                } else {
+                    listLoaded = true;
+                }
+            };
+
+            renderPagination(result);
+            renderHeaderTotal(result.total);
+            renderBatch();
+        }
+
+        function renderFilters(allModels, allApps) {
+            const modelSelect = document.querySelector('select[name="model_filter"]');
+            const appSelect = document.querySelector('select[name="app_filter"]');
+            if (modelSelect && modelSelect.options.length <= 1) {
+                allModels.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    if (m === '{{ model_filter }}') opt.selected = true;
+                    modelSelect.appendChild(opt);
+                });
+            }
+            if (appSelect && appSelect.options.length <= 1) {
+                allApps.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a;
+                    opt.textContent = a;
+                    if (a === '{{ app_filter }}') opt.selected = true;
+                    appSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function setTableLoading() {
+            const tbody = document.getElementById('requests-tbody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td class="loading-cell" colspan="7">正在加载请求列表<div class="loading-dots"><span></span><span></span><span></span></div></td></tr>';
+            }
+            const pagination = document.getElementById('pagination-container');
+            if (pagination) pagination.innerHTML = '';
+        }
+
+        async function loadRequestsList() {
+            setTableLoading();
+            const params = buildQueryParams();
+            try {
+                const response = await fetch(`/api/requests?${params.toString()}`);
+                const data = await response.json();
+                renderStats(data.stats);
+                renderPagination(data.result);
+                renderHeaderTotal(data.result.total);
+                renderFilters(data.all_models || [], data.all_apps || []);
+                renderRequestsIncremental(data.result);
+            } catch (error) {
+                const tbody = document.getElementById('requests-tbody');
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td class="loading-cell" colspan="7">加载失败：${error.message}</td></tr>`;
+                }
+            }
+        }
         
         function copyRequestLink() {
             if (currentRequestId) {
@@ -1357,14 +1505,16 @@
         
         function closeRequestDetail() {
             document.getElementById('requestModal').style.display = 'none';
-            
-            // 如果是通过?request=参数打开的，关闭时加载列表
-            if (needsReload) {
-                needsReload = false;
-                // 清除URL中的request参数并刷新页面
-                const url = new URL(window.location);
+            // 如果是通过?request=参数打开的，关闭时加载列表且移除参数
+            const url = new URL(window.location);
+            if (url.searchParams.has('request')) {
                 url.searchParams.delete('request');
-                window.location.href = url.toString();
+                window.history.replaceState({}, '', url.toString());
+                needsReload = true;
+            }
+            if (needsReload && !listLoaded) {
+                needsReload = false;
+                loadRequestsList();
             }
         }
         
@@ -1384,10 +1534,13 @@
         
         // 页面初始化
         document.addEventListener('DOMContentLoaded', function() {
-            // 检查是否有初始请求ID需要显示
             const initialRequestId = {{ initial_request_id if initial_request_id else 'null' }};
             if (initialRequestId) {
+                // 有request参数时：仅打开详情，不拉列表，关闭后再加载
                 showRequestDetail(initialRequestId);
+                needsReload = true;
+            } else {
+                loadRequestsList();
             }
         });
     </script>

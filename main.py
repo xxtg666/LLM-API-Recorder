@@ -65,11 +65,12 @@ def verify_password(credentials: HTTPBasicCredentials = Depends(security)):
 async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = Query(None),
                    model_filter: str = Query(None), app_filter: str = Query(None),
                    request_id: int = Query(None, alias="request"),
+                   lazy: bool = Query(True),
                    authenticated: bool = Depends(verify_password)):
     """主页面 - 显示请求记录"""
     try:
-        # 如果有request参数，跳过获取请求列表（延迟加载）
-        skip_list = request_id is not None
+        # 如果有request参数或开启lazy模式，跳过获取请求列表（延迟加载）
+        skip_list = request_id is not None or lazy
         
         if skip_list:
             # 返回空列表，前端关闭详情后再加载
@@ -115,7 +116,8 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             "current_page": page,
             "web_title": config.web_title,
             "skip_list": skip_list,
-            "initial_request_id": request_id
+            "initial_request_id": request_id,
+            "lazy": lazy
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
