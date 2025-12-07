@@ -14,7 +14,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from config import config
-from database import db, APIRequest
+from database import DatabaseFilter, db, APIRequest
 from utils import (
     extract_tokens_from_request, 
     extract_tokens_from_response, 
@@ -91,12 +91,9 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             all_apps = []
             load_time_ms = 0
         else:
-            # 获取请求记录
-            result = db.get_requests(page=page, page_size=20, search=search, 
-                                   model_filter=model_filter, app_filter=app_filter)
-            
-            # 获取统计信息
-            stats = db.get_statistics(search=search, model_filter=model_filter, app_filter=app_filter)
+            with DatabaseFilter(db, search=search, model_filter=model_filter, app_filter=app_filter) as df:
+                result = df.get_requests(page=page, page_size=20)
+                stats = df.get_statistics()
             
             # 获取筛选选项
             all_models = db.get_unique_models()
@@ -150,10 +147,9 @@ async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None)
     """获取请求列表API"""
     try:
         start_time = time.perf_counter()
-        result = db.get_requests(page=page, page_size=20, search=search, 
-                               model_filter=model_filter, app_filter=app_filter)
-        
-        stats = db.get_statistics(search=search, model_filter=model_filter, app_filter=app_filter)
+        with DatabaseFilter(db, search=search, model_filter=model_filter, app_filter=app_filter) as df:
+            result = df.get_requests(page=page, page_size=20)
+            stats = df.get_statistics()
         
         all_models = db.get_unique_models()
         all_apps = db.get_unique_apps()
@@ -242,7 +238,7 @@ async def proxy_completions(request: Request):
         # 记录请求开始
         request_id = db.add_request(
             model=model,
-            app_name=app_name,
+            app_name=app_name or "",
             request_content=cleaned_request_data,
             input_tokens=input_tokens,
             status_code=0  # 0表示正在处理
@@ -281,7 +277,7 @@ async def proxy_completions(request: Request):
     except Exception as e:
         # 记录错误
         duration = time.time() - start_time
-        if request_id:
+        if request_id is not None:
             # 更新请求记录
             try:
                 session = db.get_session()
@@ -290,6 +286,7 @@ async def proxy_completions(request: Request):
                     request_record.duration = duration
                     request_record.status_code = 500
                     request_record.error_message = str(e)
+                    session.add(request_record)
                     session.commit()
                 session.close()
             except:
@@ -323,7 +320,7 @@ async def proxy_embeddings(request: Request):
         # 记录请求开始
         request_id = db.add_request(
             model=model,
-            app_name=app_name,
+            app_name=app_name or "",
             request_content=cleaned_request_data,
             input_tokens=input_tokens,
             status_code=0  # 0表示正在处理
@@ -364,6 +361,7 @@ async def proxy_embeddings(request: Request):
                     request_record.total_tokens = req_input_tokens + output_tokens
                     request_record.duration = duration
                     request_record.status_code = response.status_code
+                    session.add(request_record)
                     session.commit()
             finally:
                 session.close()
@@ -380,6 +378,7 @@ async def proxy_embeddings(request: Request):
                 request_record.duration = duration
                 request_record.status_code = 500
                 request_record.error_message = str(e)
+                session.add(request_record)
                 session.commit()
         finally:
             session.close()
@@ -387,7 +386,7 @@ async def proxy_embeddings(request: Request):
     except Exception as e:
         # 记录错误
         duration = time.time() - start_time
-        if request_id:
+        if request_id is not None:
             try:
                 session = db.get_session()
                 request_record = session.query(APIRequest).filter(APIRequest.id == request_id).first()
@@ -395,6 +394,7 @@ async def proxy_embeddings(request: Request):
                     request_record.duration = duration
                     request_record.status_code = 500
                     request_record.error_message = str(e)
+                    session.add(request_record)
                     session.commit()
                 session.close()
             except:
@@ -430,7 +430,7 @@ async def proxy_chat_completions(request: Request):
         # 记录请求开始
         request_id = db.add_request(
             model=model,
-            app_name=app_name,
+            app_name=app_name or "",
             request_content=cleaned_request_data,
             input_tokens=input_tokens,
             status_code=0  # 0表示正在处理
@@ -474,7 +474,7 @@ async def proxy_chat_completions(request: Request):
         logger.error(f"聊天完成请求处理失败: {e}", exc_info=True)
         # 记录错误
         duration = time.time() - start_time
-        if request_id:
+        if request_id is not None:
             # 更新请求记录
             try:
                 session = db.get_session()
@@ -483,6 +483,7 @@ async def proxy_chat_completions(request: Request):
                     request_record.duration = duration
                     request_record.status_code = 500
                     request_record.error_message = str(e)
+                    session.add(request_record)
                     session.commit()
                 session.close()
             except Exception as db_error:
@@ -523,6 +524,7 @@ async def handle_non_streaming_request(client, target_url, headers, request_data
                 request_record.total_tokens = req_input_tokens + output_tokens
                 request_record.duration = duration
                 request_record.status_code = response.status_code
+                session.add(request_record)
                 session.commit()
                 logger.info(f"数据库记录更新成功: request_id={request_id}")
         except Exception as db_error:
@@ -543,6 +545,7 @@ async def handle_non_streaming_request(client, target_url, headers, request_data
                 request_record.duration = duration
                 request_record.status_code = 500
                 request_record.error_message = str(e)
+                session.add(request_record)
                 session.commit()
         except Exception as db_error:
             logger.error(f"数据库错误记录失败: {db_error}")
@@ -604,6 +607,7 @@ async def handle_streaming_request(target_url, headers, request_data,
                     request_record.duration = duration
                     request_record.status_code = 500
                     request_record.error_message = str(e)
+                    session.add(request_record)
                     session.commit()
             except Exception as db_error:
                 logger.error(f"数据库错误记录失败: {db_error}")
@@ -639,6 +643,7 @@ async def handle_streaming_request(target_url, headers, request_data,
                     request_record.total_tokens = input_tokens + output_tokens
                     request_record.duration = duration
                     request_record.status_code = 200
+                    session.add(request_record)
                     session.commit()
                     logger.info(f"流式请求记录更新成功: request_id={request_id}")
             except Exception as db_error:

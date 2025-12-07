@@ -45,8 +45,133 @@ class APIRequest(Base):
             'error_message': self.error_message
         }
 
+class DatabaseFilter:
+    """数据库查询过滤器，用于优化重复查询"""
+    
+    def __init__(self, db, search=None, model_filter=None, app_filter=None):
+        self.db = db
+        self.search = search
+        self.model_filter = model_filter
+        self.app_filter = app_filter
+        self.session = None
+        self.base_query = None
+        self.cached_data = None
+        self.use_cache = False
+    
+    def __enter__(self):
+        """上下文管理器入口"""
+        self.session = self.db.get_session()
+        self._build_base_query()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """上下文管理器出口"""
+        if self.session:
+            self.session.close()
+    
+    def _build_base_query(self):
+        """构建基础查询对象"""
+        self.base_query = self.session.query(APIRequest)
+        
+        # 应用搜索过滤条件
+        if self.search:
+            search_filter = f"%{self.search}%"
+            self.base_query = self.base_query.filter(
+                (APIRequest.model.like(search_filter)) |
+                (APIRequest.app_name.like(search_filter)) |
+                (APIRequest.request_content.like(search_filter)) |
+                (APIRequest.response_content.like(search_filter)) |
+                (APIRequest.error_message.like(search_filter))
+            )
+        
+        # 应用模型筛选条件
+        if self.model_filter:
+            self.base_query = self.base_query.filter(APIRequest.model == self.model_filter)
+        
+        # 应用应用筛选条件
+        if self.app_filter:
+            self.base_query = self.base_query.filter(APIRequest.app_name == self.app_filter)
+    
+    def enable_cache(self):
+        """启用缓存机制"""
+        self.use_cache = True
+        self._cache_all_data()
+    
+    def _cache_all_data(self):
+        """将所有数据缓存到内存中"""
+        if self.use_cache and self.base_query is not None:
+            # 按时间倒序排列
+            cache_query = self.base_query.order_by(APIRequest.id.desc())
+            self.cached_data = cache_query.all()
+    
+    def get_requests(self, page: int = 1, page_size: int = 50):
+        """获取请求记录列表"""
+        if self.use_cache and self.cached_data is not None:
+            # 使用缓存数据进行分页
+            total = len(self.cached_data)
+            offset = (page - 1) * page_size
+            # 切片获取当前页数据
+            page_data = self.cached_data[offset:offset + page_size]
+            requests = [req.to_dict() for req in page_data]
+        else:
+            # 使用数据库查询
+            # 按时间倒序排列
+            query = self.base_query.order_by(APIRequest.id.desc())
+            
+            # 分页
+            offset = (page - 1) * page_size
+            total = query.count()
+            requests = query.offset(offset).limit(page_size).all()
+            requests = [req.to_dict() for req in requests]
+        
+        return {
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'pages': (total + page_size - 1) // page_size,
+            'requests': requests
+        }
+    
+    def get_statistics(self):
+        """获取统计信息"""
+        from sqlalchemy import func
+        
+        if self.use_cache and self.cached_data is not None:
+            # 使用缓存数据计算统计信息
+            total_requests = len(self.cached_data)
+            total_input_tokens = sum(req.input_tokens for req in self.cached_data)
+            total_output_tokens = sum(req.output_tokens for req in self.cached_data)
+            total_tokens = sum(req.total_tokens for req in self.cached_data)
+            
+            # 计算平均耗时
+            durations = [req.duration for req in self.cached_data if req.duration is not None]
+            avg_duration = sum(durations) / len(durations) if durations else 0
+        else:
+            # 使用数据库查询计算统计信息
+            stats = self.base_query.with_entities(
+                func.count(APIRequest.id).label('total_requests'),
+                func.sum(APIRequest.input_tokens).label('total_input_tokens'),
+                func.sum(APIRequest.output_tokens).label('total_output_tokens'),
+                func.sum(APIRequest.total_tokens).label('total_tokens'),
+                func.avg(APIRequest.duration).label('avg_duration')
+            ).first()
+            
+            total_requests = stats.total_requests or 0
+            total_input_tokens = stats.total_input_tokens or 0
+            total_output_tokens = stats.total_output_tokens or 0
+            total_tokens = stats.total_tokens or 0
+            avg_duration = stats.avg_duration or 0
+        
+        return {
+            'total_requests': total_requests,
+            'total_input_tokens': total_input_tokens,
+            'total_output_tokens': total_output_tokens,
+            'total_tokens': total_tokens,
+            'avg_duration': round(avg_duration, 3)
+        }
+
 class Database:
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str | None = None):
         if db_path is None:
             db_path = config.db_path
         
@@ -166,7 +291,7 @@ class Database:
                 query = query.filter(APIRequest.app_name == app_filter)
             
             # 按时间倒序排列
-            query = query.order_by(APIRequest.timestamp.desc())
+            query = query.order_by(APIRequest.id.desc())
             
             # 分页
             offset = (page - 1) * page_size
