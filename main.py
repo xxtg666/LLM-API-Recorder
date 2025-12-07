@@ -8,6 +8,7 @@ import httpx
 import json
 import time
 import logging
+import random
 from typing import Optional, Dict, Any
 import asyncio
 from contextlib import asynccontextmanager
@@ -48,6 +49,15 @@ templates.env.lstrip_blocks = True
 # HTTP基本认证
 security = HTTPBasic()
 
+last_list_load_ms: Optional[float] = None
+
+
+def get_estimated_load_ms() -> float:
+    """Return previous load duration plus random network jitter."""
+    base = last_list_load_ms if last_list_load_ms else 800.0
+    jitter = random.randint(500, 1000)
+    return base + jitter
+
 def verify_password(credentials: HTTPBasicCredentials = Depends(security)):
     """验证访问密码"""
     if not config.access_password:
@@ -69,6 +79,7 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
                    authenticated: bool = Depends(verify_password)):
     """主页面 - 显示请求记录"""
     try:
+        start_time = time.perf_counter()
         # 如果有request参数或开启lazy模式，跳过获取请求列表（延迟加载）
         skip_list = request_id is not None or lazy
         
@@ -78,6 +89,7 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             stats = {'total_requests': 0, 'total_input_tokens': 0, 'total_output_tokens': 0, 'total_tokens': 0, 'avg_duration': 0}
             all_models = []
             all_apps = []
+            load_time_ms = 0
         else:
             # 获取请求记录
             result = db.get_requests(page=page, page_size=20, search=search, 
@@ -103,6 +115,13 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
                     req['preview_content'] = truncate_text(last_message.get('content', ''))
                 else:
                     req['preview_content'] = "No content"
+
+            load_time_ms = (time.perf_counter() - start_time) * 1000
+            # 记录本次加载时间用于下次预估
+            global last_list_load_ms
+            last_list_load_ms = load_time_ms
+
+        estimated_next_ms = get_estimated_load_ms()
         
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
@@ -117,7 +136,9 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             "web_title": config.web_title,
             "skip_list": skip_list,
             "initial_request_id": request_id,
-            "lazy": lazy
+            "lazy": lazy,
+            "load_time_ms": load_time_ms,
+            "estimated_next_ms": estimated_next_ms
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -128,6 +149,7 @@ async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None)
                           authenticated: bool = Depends(verify_password)):
     """获取请求列表API"""
     try:
+        start_time = time.perf_counter()
         result = db.get_requests(page=page, page_size=20, search=search, 
                                model_filter=model_filter, app_filter=app_filter)
         
@@ -142,12 +164,19 @@ async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None)
             req['formatted_input_tokens'] = format_tokens(req['input_tokens'])
             req['formatted_output_tokens'] = format_tokens(req['output_tokens'])
             req['formatted_total_tokens'] = format_tokens(req['total_tokens'])
+
+        load_time_ms = (time.perf_counter() - start_time) * 1000
+        global last_list_load_ms
+        last_list_load_ms = load_time_ms
+        estimated_next_ms = get_estimated_load_ms()
         
         return {
             "result": result,
             "stats": stats,
             "all_models": all_models,
-            "all_apps": all_apps
+            "all_apps": all_apps,
+            "load_time_ms": load_time_ms,
+            "estimated_next_ms": estimated_next_ms
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -283,6 +283,40 @@
             40% { opacity: 1; }
         }
 
+        .load-progress {
+            display: none;
+            gap: 0.75rem;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid #e1e5e9;
+            background: #f8fafc;
+        }
+
+        .load-progress .progress-text {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            font-size: 0.9rem;
+            color: #374151;
+            min-width: 180px;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #60a5fa, #2563eb);
+            border-radius: 999px;
+            transition: width 0.15s ease-out;
+        }
+
         .no-data {
             text-align: center;
             padding: 3rem;
@@ -427,6 +461,15 @@
                     {% else %}
                     请求记录 (<span id="header-total">{{ result.total }}</span> 条记录)
                     {% endif %}
+                </div>
+                <div class="load-progress" id="load-progress">
+                    <div class="progress-text">
+                        <span id="progress-label">正在加载列表</span>
+                        <span id="progress-time" style="color: #6b7280; font-size: 0.8rem;">预估中...</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-bar" id="load-progress-bar"></div>
+                    </div>
                 </div>
                 
                 <div id="requests-table-wrapper">
@@ -1306,6 +1349,9 @@
         let skipListLoaded = {{ 'true' if skip_list else 'false' }};
         let needsReload = skipListLoaded;
         let listLoaded = false;
+        let estimatedLoadMs = {{ estimated_next_ms if estimated_next_ms is not none else 1200 }};
+        let progressRAF = null;
+        let progressStart = 0;
 
         function buildQueryParams(pageOverride) {
             const params = new URLSearchParams(window.location.search);
@@ -1325,6 +1371,48 @@
         function renderHeaderTotal(total) {
             const el = document.getElementById('header-total');
             if (el) el.textContent = total;
+        }
+
+        function startLoadProgress(estimateMs) {
+            const container = document.getElementById('load-progress');
+            const bar = document.getElementById('load-progress-bar');
+            const label = document.getElementById('progress-label');
+            const timeEl = document.getElementById('progress-time');
+            if (!container || !bar || !label || !timeEl) return;
+            progressStart = performance.now();
+            const est = estimateMs || estimatedLoadMs || 1200;
+            container.style.display = 'flex';
+            bar.style.width = '0%';
+            label.textContent = '正在加载列表';
+            timeEl.textContent = `预估 ${Math.round(est)} ms`;
+            const animate = () => {
+                const elapsed = performance.now() - progressStart;
+                const pct = Math.min(90, (elapsed / est) * 90);
+                bar.style.width = `${pct}%`;
+                progressRAF = requestAnimationFrame(animate);
+            };
+            progressRAF = requestAnimationFrame(animate);
+        }
+
+        function finishLoadProgress(status, actualMs) {
+            const container = document.getElementById('load-progress');
+            const bar = document.getElementById('load-progress-bar');
+            const label = document.getElementById('progress-label');
+            const timeEl = document.getElementById('progress-time');
+            if (!container || !bar || !label || !timeEl) return;
+            if (progressRAF) cancelAnimationFrame(progressRAF);
+            const elapsed = performance.now() - progressStart;
+            const realMs = actualMs || elapsed;
+            bar.style.width = '100%';
+            if (status === 'success') {
+                label.textContent = '加载完成';
+                timeEl.textContent = `耗时 ${Math.round(realMs)} ms`;
+                setTimeout(() => { container.style.display = 'none'; }, 800);
+            } else {
+                label.textContent = '加载失败';
+                timeEl.textContent = `用时 ${Math.round(realMs)} ms`;
+                setTimeout(() => { container.style.display = 'none'; }, 1500);
+            }
         }
 
         function renderPagination(result) {
@@ -1448,6 +1536,8 @@
         async function loadRequestsList() {
             setTableLoading();
             const params = buildQueryParams();
+            const clientStart = performance.now();
+            startLoadProgress(estimatedLoadMs);
             try {
                 const response = await fetch(`/api/requests?${params.toString()}`);
                 const data = await response.json();
@@ -1456,11 +1546,18 @@
                 renderHeaderTotal(data.result.total);
                 renderFilters(data.all_models || [], data.all_apps || []);
                 renderRequestsIncremental(data.result);
+                const serverMs = data.load_time_ms ? Number(data.load_time_ms) : null;
+                const elapsed = performance.now() - clientStart;
+                finishLoadProgress('success', serverMs || elapsed);
+                if (data.estimated_next_ms) {
+                    estimatedLoadMs = Number(data.estimated_next_ms);
+                }
             } catch (error) {
                 const tbody = document.getElementById('requests-tbody');
                 if (tbody) {
                     tbody.innerHTML = `<tr><td class="loading-cell" colspan="7">加载失败：${error.message}</td></tr>`;
                 }
+                finishLoadProgress('error');
             }
         }
         
