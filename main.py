@@ -45,7 +45,6 @@ class SearchRequest(BaseModel):
     sort_order: Optional[str] = None
     id_from: Optional[str] = None
     id_to: Optional[str] = None
-    search_mode: Optional[str] = None
     cond: Optional[str] = None
 
 # 配置日志
@@ -103,7 +102,6 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
                    max_duration: str = Query(None), search_field: str = Query(None),
                    sort_by: str = Query(None), sort_order: str = Query(None),
                    id_from: str = Query(None), id_to: str = Query(None),
-                   search_mode: str = Query(None),
                    request_id: int = Query(None, alias="request"),
                    lazy: bool = Query(True),
                    authenticated: bool = Depends(verify_password)):
@@ -138,7 +136,7 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
                 max_tokens=max_tokens_int, min_duration=min_duration_float,
                 max_duration=max_duration_float, search_field=search_field,
                 sort_by=sort_by, sort_order=sort_order,
-                id_from=id_from_int, id_to=id_to_int, search_mode=search_mode
+                id_from=id_from_int, id_to=id_to_int
             )
             
             result = data['result']
@@ -173,7 +171,7 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             status_filter=status_filter, date_from=date_from, date_to=date_to,
             min_tokens=min_tokens, max_tokens=max_tokens,
             min_duration=min_duration, max_duration=max_duration, search_field=search_field,
-            sort_by=sort_by, id_from=id_from, id_to=id_to, search_mode=search_mode
+            sort_by=sort_by, id_from=id_from, id_to=id_to
         )
         
         return templates.TemplateResponse("dashboard.html", {
@@ -192,12 +190,11 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             "max_tokens": max_tokens or "",
             "min_duration": min_duration or "",
             "max_duration": max_duration or "",
-            "search_field": search_field or "all",
+            "search_field": search_field or "response",
             "sort_by": sort_by or "time",
             "sort_order": sort_order or "desc",
             "id_from": id_from or "",
             "id_to": id_to or "",
-            "search_mode": search_mode or "and",
             "current_page": page,
             "web_title": config.web_title,
             "skip_list": skip_list,
@@ -272,23 +269,19 @@ def build_filter_summary(search=None, model_filter=None, app_filter=None,
                         status_filter=None, date_from=None, date_to=None,
                         min_tokens=None, max_tokens=None, min_duration=None,
                         max_duration=None, search_field=None, sort_by=None,
-                        id_from=None, id_to=None, search_mode=None, conditions=None):
+                        id_from=None, id_to=None, conditions=None):
     """构建筛选条件的摘要文本"""
     parts = []
     
     if search:
         field_names = {
-            'all': '全部字段',
-            'request': '请求内容',
-            'response': '响应内容',
-            'error': '错误信息'
+            'response': '响应',
+            'request': '请求',
+            'content': '全部(陨15天)',
+            'error': '错误'
         }
-        field_name = field_names.get(search_field, '全部字段')
-        mode_name = 'AND' if search_mode == 'and' else 'OR'
-        if ' ' in search or '-' in search:
-            parts.append(f'搜索"{search}"于{field_name}({mode_name}模式)')
-        else:
-            parts.append(f'搜索"{search}"于{field_name}')
+        field_name = field_names.get(search_field, '响应')
+        parts.append(f'搜索"{search}"于{field_name}')
     
     if model_filter:
         parts.append(f'模型: {model_filter}')
@@ -400,7 +393,7 @@ async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None)
                           max_duration: str = Query(None), search_field: str = Query(None),
                           sort_by: str = Query(None), sort_order: str = Query(None),
                           id_from: str = Query(None), id_to: str = Query(None),
-                          search_mode: str = Query(None), cond: str = Query(None),
+                          cond: str = Query(None),
                           authenticated: bool = Depends(verify_password)):
     """获取请求列表API (GET)"""
     return await _search_requests(
@@ -408,7 +401,7 @@ async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None)
         status_filter=status_filter, date_from=date_from, date_to=date_to,
         min_tokens=min_tokens, max_tokens=max_tokens, min_duration=min_duration,
         max_duration=max_duration, search_field=search_field, sort_by=sort_by,
-        sort_order=sort_order, id_from=id_from, id_to=id_to, search_mode=search_mode,
+        sort_order=sort_order, id_from=id_from, id_to=id_to,
         cond=cond
     )
 
@@ -435,7 +428,6 @@ async def post_search(request: Request, authenticated: bool = Depends(verify_pas
         sort_order=form_data.get('sort_order') or None,
         id_from=form_data.get('id_from') or None,
         id_to=form_data.get('id_to') or None,
-        search_mode=form_data.get('search_mode') or None,
         cond=form_data.get('cond') or None
     )
 
@@ -451,7 +443,7 @@ async def post_search_api(body: SearchRequest, authenticated: bool = Depends(ver
         min_duration=body.min_duration, max_duration=body.max_duration,
         search_field=body.search_field, sort_by=body.sort_by,
         sort_order=body.sort_order, id_from=body.id_from, id_to=body.id_to,
-        search_mode=body.search_mode, cond=body.cond
+        cond=body.cond
     )
 
 
@@ -460,7 +452,7 @@ async def _search_requests(page=1, search=None, model_filter=None, app_filter=No
                            min_tokens=None, max_tokens=None, min_duration=None,
                            max_duration=None, search_field=None, sort_by=None,
                            sort_order=None, id_from=None, id_to=None,
-                           search_mode=None, cond=None):
+                           cond=None):
     """搜索请求的核心逻辑"""
     try:
         start_time = time.perf_counter()
@@ -485,7 +477,7 @@ async def _search_requests(page=1, search=None, model_filter=None, app_filter=No
             max_tokens=max_tokens_int, min_duration=min_duration_float,
             max_duration=max_duration_float, search_field=search_field,
             sort_by=sort_by, sort_order=sort_order,
-            id_from=id_from_int, id_to=id_to_int, search_mode=search_mode,
+            id_from=id_from_int, id_to=id_to_int,
             conditions=conditions_list
         )
         
@@ -516,7 +508,7 @@ async def _search_requests(page=1, search=None, model_filter=None, app_filter=No
             status_filter=status_filter, date_from=date_from, date_to=date_to,
             min_tokens=min_tokens, max_tokens=max_tokens,
             min_duration=min_duration, max_duration=max_duration, search_field=search_field,
-            sort_by=sort_by, id_from=id_from, id_to=id_to, search_mode=search_mode,
+            sort_by=sort_by, id_from=id_from, id_to=id_to,
             conditions=conditions_list
         )
         

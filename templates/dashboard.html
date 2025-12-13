@@ -694,16 +694,11 @@
                     <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                         <input type="text" name="search" class="search-input" placeholder="搜索 (空格分隔多词, -排除)" value="{{ search }}" id="searchInput" title="支持多关键词搜索：空格分隔多个词，-号开头排除该词，引号包裹精确短语">
                         
-                        <select name="search_field" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: white; font-size: 0.85rem;">
-                            <option value="all" {% if search_field == 'all' or not search_field %}selected{% endif %}>全部字段</option>
-                            <option value="request" {% if search_field == 'request' %}selected{% endif %}>仅请求</option>
-                            <option value="response" {% if search_field == 'response' %}selected{% endif %}>仅响应</option>
-                            <option value="error" {% if search_field == 'error' %}selected{% endif %}>仅错误</option>
-                        </select>
-                        
-                        <select name="search_mode" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: white; font-size: 0.85rem;" title="AND=所有词都匹配, OR=任一词匹配">
-                            <option value="and" {% if search_mode == 'and' or not search_mode %}selected{% endif %}>AND</option>
-                            <option value="or" {% if search_mode == 'or' %}selected{% endif %}>OR</option>
+                        <select name="search_field" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: white; font-size: 0.85rem;" title="默认搜响应，全部内容自动限制15天">
+                            <option value="response" {% if search_field == 'response' or not search_field %}selected{% endif %}>响应内容</option>
+                            <option value="request" {% if search_field == 'request' %}selected{% endif %}>请求内容</option>
+                            <option value="content" {% if search_field == 'content' %}selected{% endif %}>全部内容(近15天)</option>
+                            <option value="error" {% if search_field == 'error' %}selected{% endif %}>错误信息</option>
                         </select>
                         
                         <button type="submit" class="search-btn">搜索</button>
@@ -834,7 +829,7 @@
                 <!-- 高级条件构建器 -->
                 <div style="margin-top: 1rem; padding: 1rem; background: #fff; border: 1px solid #e1e5e9; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <h5 style="margin: 0; color: #374151;">🔍 高级条件构建器</h5>
+                        <h5 style="margin: 0; color: #374151;">🔍 高级条件构建器 (默认近15天限制)</h5>
                         <div style="display: flex; gap: 0.5rem;">
                             <button type="button" class="quick-filter-btn" onclick="copyConditions()" title="复制当前条件">📋 复制</button>
                             <button type="button" class="quick-filter-btn" onclick="pasteConditions()" title="粘贴条件">📥 粘贴</button>
@@ -854,8 +849,7 @@
                     <strong>搜索语法：</strong>
                     <span style="margin-left: 0.5rem;">多词搜索用空格分隔</span> |
                     <span><code>-词</code> 排除包含该词的结果</span> |
-                    <span><code>"精确短语"</code> 精确匹配短语</span> |
-                    <span>AND模式=所有词都匹配，OR模式=任一词匹配</span>
+                    <span><code>"精确短语"</code> 精确匹配短语</span>
                 </div>
         </div>
     </div>
@@ -1654,7 +1648,6 @@
                     // 恢复表单其他字段
                     if (params.search) document.querySelector('input[name="search"]').value = params.search;
                     if (params.search_field) document.querySelector('select[name="search_field"]').value = params.search_field;
-                    if (params.search_mode) document.querySelector('select[name="search_mode"]').value = params.search_mode;
                 }
             } catch (e) {
                 console.error('Failed to restore conditions:', e);

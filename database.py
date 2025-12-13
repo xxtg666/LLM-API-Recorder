@@ -24,7 +24,7 @@ class APIRequest(Base):
     """API请求记录表"""
     __tablename__ = "api_requests"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     timestamp = Column(DateTime, default=get_current_time, index=True)
     model = Column(String(100), index=True)
     app_name = Column(String(100), index=True, nullable=True)  # 应用名称，来自X-Title头
@@ -107,6 +107,9 @@ class Database:
             print("数据库连接成功，表结构已同步")
             # 检查并执行数据库升级
             self._upgrade_database()
+            # 为 PostgreSQL 创建优化索引
+            if self.db_type == 'postgresql':
+                self._create_postgresql_indexes()
         except Exception as e:
             print(f"数据库初始化失败: {e}")
             raise
@@ -157,6 +160,40 @@ class Database:
         except:
             pass
         return url
+    
+    def _create_postgresql_indexes(self):
+        """为 PostgreSQL 创建优化索引"""
+        try:
+            with self.engine.connect() as conn:
+                # 检查并创建 GIN 索引用于全文搜索
+                # 使用 pg_trgm 扩展支持 LIKE/ILIKE 的索引加速
+                try:
+                    conn.execute(text('CREATE EXTENSION IF NOT EXISTS pg_trgm'))
+                    conn.commit()
+                    print("PostgreSQL pg_trgm 扩展已启用")
+                except Exception as e:
+                    print(f"pg_trgm 扩展创建失败（可能需要超级用户权限）: {e}")
+                
+                # 为 model 和 app_name 创建 GIN 索引（如果不存在）
+                indexes = [
+                    ('idx_api_requests_model_gin', 'model', 'gin_trgm_ops'),
+                    ('idx_api_requests_app_gin', 'app_name', 'gin_trgm_ops'),
+                ]
+                
+                for idx_name, column, ops in indexes:
+                    try:
+                        conn.execute(text(f'''
+                            CREATE INDEX IF NOT EXISTS {idx_name} 
+                            ON api_requests USING gin ({column} {ops})
+                        '''))
+                        conn.commit()
+                    except Exception as e:
+                        # 索引可能已存在或 pg_trgm 不可用
+                        pass
+                
+                print("PostgreSQL 索引检查完成")
+        except Exception as e:
+            print(f"PostgreSQL 索引创建失败: {e}")
     
     def _upgrade_database(self):
         """检查并升级数据库结构"""
@@ -227,13 +264,13 @@ class Database:
                              max_tokens: int = None, min_duration: float = None,
                              max_duration: float = None, search_field: str = None,
                              id_from: int = None, id_to: int = None,
-                             search_mode: str = None, conditions: List[Dict] = None):
+                             conditions: List[Dict] = None):
         """
         构建通用的过滤查询条件
         
         Args:
             query: SQLAlchemy 查询对象
-            search: 简单搜索关键词（支持空格分隔多关键词，-前缀排除）
+            search: 简单搜索关键词（支持空格分隔多关键词，-前缀排除，多词用AND组合）
             model_filter: 模型筛选
             app_filter: 应用筛选
             status_filter: 状态筛选 (success/error/pending)
@@ -243,20 +280,30 @@ class Database:
             max_tokens: 最大token数
             min_duration: 最小耗时（秒）
             max_duration: 最大耗时（秒）
-            search_field: 搜索字段 (all/request/response/error)
+            search_field: 搜索字段
+                - response: 响应内容（默认）
+                - request: 请求内容
+                - content: 请求+响应（自动限制15天）
+                - error: 错误信息
             id_from: 起始ID
             id_to: 结束ID
-            search_mode: 搜索模式 (and/or)
-            conditions: 高级条件列表，每个条件是一个字典，包含:
-                - field: 字段名 (role, content, model, app, param, feature等)
-                - operator: 操作符 (contains, not_contains, equals, not_equals, exists, not_exists)
-                - value: 值
-                - role: 针对哪个角色 (用于 content 字段)
+            conditions: 高级条件列表
         
         Returns:
             添加了过滤条件的查询对象
         """
-        # 简单搜索（保留原有逻辑）
+        # 自动限制15天的情况：全内容搜索 或 有高级条件
+        auto_date_limit = False
+        if not date_from:
+            # 全内容搜索限制15天
+            if search and search_field == 'content':
+                auto_date_limit = True
+                date_from = (datetime.now(UTC8) - timedelta(days=15)).strftime('%Y-%m-%d')
+            # 高级条件构建器有条件时也限制15天
+            elif conditions and len(conditions) > 0:
+                auto_date_limit = True
+                date_from = (datetime.now(UTC8) - timedelta(days=15)).strftime('%Y-%m-%d')
+        # 简单搜索（链式AND过滤，逐步缩小结果集）
         if search:
             # 解析搜索词：支持空格分隔，-前缀表示排除
             include_terms = []
@@ -271,58 +318,37 @@ class Database:
                 elif term and term != '-':
                     include_terms.append(term)
             
-            def build_term_filter(term, exclude=False):
-                """构建单个词的搜索条件"""
+            def build_term_filter(term, field_type):
+                """构建单个词在指定字段类型上的搜索条件"""
                 search_filter = f"%{term}%"
                 
-                if search_field == 'request':
-                    if self.db_type == 'postgresql':
-                        condition = APIRequest.request_content.ilike(search_filter)
-                    else:
-                        condition = APIRequest.request_content.like(search_filter)
-                elif search_field == 'response':
-                    if self.db_type == 'postgresql':
-                        condition = APIRequest.response_content.ilike(search_filter)
-                    else:
-                        condition = APIRequest.response_content.like(search_filter)
-                elif search_field == 'error':
-                    if self.db_type == 'postgresql':
-                        condition = APIRequest.error_message.ilike(search_filter)
-                    else:
-                        condition = APIRequest.error_message.like(search_filter)
+                if self.db_type == 'postgresql':
+                    like_func = lambda col: col.ilike(search_filter)
                 else:
-                    # 搜索所有字段
-                    if self.db_type == 'postgresql':
-                        condition = or_(
-                            APIRequest.model.ilike(search_filter),
-                            APIRequest.app_name.ilike(search_filter),
-                            APIRequest.request_content.ilike(search_filter),
-                            APIRequest.response_content.ilike(search_filter),
-                            APIRequest.error_message.ilike(search_filter)
-                        )
-                    else:
-                        condition = or_(
-                            APIRequest.model.like(search_filter),
-                            APIRequest.app_name.like(search_filter),
-                            APIRequest.request_content.like(search_filter),
-                            APIRequest.response_content.like(search_filter),
-                            APIRequest.error_message.like(search_filter)
-                        )
+                    like_func = lambda col: col.like(search_filter)
                 
-                return not_(condition) if exclude else condition
-            
-            # 构建包含条件
-            if include_terms:
-                if search_mode == 'or':
-                    include_conditions = [build_term_filter(term) for term in include_terms]
-                    query = query.filter(or_(*include_conditions))
+                if field_type == 'request':
+                    return like_func(APIRequest.request_content)
+                elif field_type == 'content':
+                    # 全内容搜索：优先搜响应，再补充请求
+                    # 使用 OR 但已经限制15天，数据量可控
+                    return or_(like_func(APIRequest.response_content), like_func(APIRequest.request_content))
+                elif field_type == 'error':
+                    return like_func(APIRequest.error_message)
                 else:
-                    for term in include_terms:
-                        query = query.filter(build_term_filter(term))
+                    # 默认: 只搜索响应内容
+                    return like_func(APIRequest.response_content)
             
-            # 构建排除条件
+            # 确定搜索字段类型，默认为响应内容
+            field_type = search_field if search_field in ('request', 'content', 'error') else 'response'
+            
+            # 链式AND过滤：每个词都必须匹配，逐步缩小结果集
+            for term in include_terms:
+                query = query.filter(build_term_filter(term, field_type))
+            
+            # 排除条件
             for term in exclude_terms:
-                query = query.filter(build_term_filter(term, exclude=True))
+                query = query.filter(not_(build_term_filter(term, field_type)))
         
         # 高级条件筛选
         if conditions:
@@ -574,7 +600,7 @@ class Database:
                                 max_duration: float = None, search_field: str = None,
                                 sort_by: str = None, sort_order: str = None,
                                 id_from: int = None, id_to: int = None,
-                                search_mode: str = None, conditions: List[Dict] = None) -> Dict[str, Any]:
+                                conditions: List[Dict] = None) -> Dict[str, Any]:
         """
         一次查询获取请求列表、统计信息和筛选选项
         
@@ -594,47 +620,87 @@ class Database:
                 base_query, search, model_filter, app_filter,
                 status_filter, date_from, date_to, min_tokens,
                 max_tokens, min_duration, max_duration, search_field,
-                id_from, id_to, search_mode, conditions
+                id_from, id_to, conditions
             )
             
             # 1. 获取分页数据
             offset = (page - 1) * page_size
             
-            # 获取总数
-            count_query = filtered_query.with_entities(func.count(APIRequest.id))
-            total = count_query.scalar()
+            # 优化：对于复杂搜索，先获取匹配的ID列表，再查询详情
+            # 这样可以避免在大字段上重复计算
+            has_complex_search = bool(search or conditions)
             
-            # 确定排序方式
-            if sort_by == 'tokens':
-                order_column = APIRequest.total_tokens
-            elif sort_by == 'duration':
-                order_column = APIRequest.duration
+            if has_complex_search and self.db_type == 'postgresql':
+                # PostgreSQL 优化：使用子查询
+                # 先获取符合条件的ID
+                id_subquery = filtered_query.with_entities(APIRequest.id)
+                
+                # 获取总数（使用count子查询）
+                total = session.query(func.count()).select_from(id_subquery.subquery()).scalar()
+                
+                # 确定排序方式
+                if sort_by == 'tokens':
+                    order_column = APIRequest.total_tokens
+                elif sort_by == 'duration':
+                    order_column = APIRequest.duration
+                else:
+                    order_column = APIRequest.timestamp
+                
+                # 确定排序方向并获取分页ID
+                if sort_order == 'asc':
+                    ordered_ids = filtered_query.with_entities(APIRequest.id).order_by(order_column.asc()).offset(offset).limit(page_size).all()
+                else:
+                    ordered_ids = filtered_query.with_entities(APIRequest.id).order_by(order_column.desc()).offset(offset).limit(page_size).all()
+                
+                # 用ID列表查询完整记录
+                if ordered_ids:
+                    ids = [r[0] for r in ordered_ids]
+                    requests = session.query(APIRequest).filter(APIRequest.id.in_(ids)).all()
+                    # 按原顺序排序
+                    id_order = {id: idx for idx, id in enumerate(ids)}
+                    requests.sort(key=lambda r: id_order.get(r.id, 0))
+                else:
+                    requests = []
+                
+                # 统计数据：使用聚合子查询
+                stats = session.query(
+                    func.count(APIRequest.id).label('total_requests'),
+                    func.coalesce(func.sum(APIRequest.input_tokens), 0).label('total_input_tokens'),
+                    func.coalesce(func.sum(APIRequest.output_tokens), 0).label('total_output_tokens'),
+                    func.coalesce(func.sum(APIRequest.total_tokens), 0).label('total_tokens'),
+                    func.coalesce(func.avg(APIRequest.duration), 0).label('avg_duration')
+                ).filter(APIRequest.id.in_(id_subquery.subquery())).first()
             else:
-                order_column = APIRequest.timestamp
-            
-            # 确定排序方向
-            if sort_order == 'asc':
-                ordered_query = filtered_query.order_by(order_column.asc())
-            else:
-                ordered_query = filtered_query.order_by(order_column.desc())
-            
-            # 获取分页记录
-            requests = ordered_query.offset(offset).limit(page_size).all()
-            
-            # 2. 获取统计数据（使用同一个过滤条件）
-            stats_query = self._build_filter_query(
-                session.query(APIRequest), search, model_filter, app_filter,
-                status_filter, date_from, date_to, min_tokens,
-                max_tokens, min_duration, max_duration, search_field,
-                id_from, id_to, search_mode, conditions
-            )
-            stats = stats_query.with_entities(
-                func.count(APIRequest.id).label('total_requests'),
-                func.coalesce(func.sum(APIRequest.input_tokens), 0).label('total_input_tokens'),
-                func.coalesce(func.sum(APIRequest.output_tokens), 0).label('total_output_tokens'),
-                func.coalesce(func.sum(APIRequest.total_tokens), 0).label('total_tokens'),
-                func.coalesce(func.avg(APIRequest.duration), 0).label('avg_duration')
-            ).first()
+                # SQLite 或简单查询：使用原有逻辑
+                # 获取总数
+                count_query = filtered_query.with_entities(func.count(APIRequest.id))
+                total = count_query.scalar()
+                
+                # 确定排序方式
+                if sort_by == 'tokens':
+                    order_column = APIRequest.total_tokens
+                elif sort_by == 'duration':
+                    order_column = APIRequest.duration
+                else:
+                    order_column = APIRequest.timestamp
+                
+                # 确定排序方向
+                if sort_order == 'asc':
+                    ordered_query = filtered_query.order_by(order_column.asc())
+                else:
+                    ordered_query = filtered_query.order_by(order_column.desc())
+                
+                # 获取分页记录
+                requests = ordered_query.offset(offset).limit(page_size).all()
+                
+                # 统计数据
+                stats = filtered_query.with_entities(
+                    func.count(APIRequest.id).label('total_requests'),
+                    func.coalesce(func.sum(APIRequest.input_tokens), 0).label('total_input_tokens'),
+                    func.coalesce(func.sum(APIRequest.output_tokens), 0).label('total_output_tokens'),
+                    func.coalesce(func.sum(APIRequest.total_tokens), 0).label('total_tokens'),
+                    func.coalesce(func.avg(APIRequest.duration), 0).label('avg_duration')
+                ).first()
             
             # 3. 获取所有不同的模型和应用（全局，不受筛选条件影响）
             all_models = [m[0] for m in session.query(APIRequest.model).distinct().all() if m[0]]
