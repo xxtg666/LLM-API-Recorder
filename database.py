@@ -1,10 +1,11 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float, inspect, text, func
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float, inspect, text, func, and_, or_, not_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, Tuple
 from urllib.parse import urlparse
 import json
+import re
 import os
 from config import config
 
@@ -220,40 +221,113 @@ class Database:
             session.close()
     
     def _build_filter_query(self, query, search: str = None, 
-                             model_filter: str = None, app_filter: str = None):
+                             model_filter: str = None, app_filter: str = None,
+                             status_filter: str = None, date_from: str = None,
+                             date_to: str = None, min_tokens: int = None,
+                             max_tokens: int = None, min_duration: float = None,
+                             max_duration: float = None, search_field: str = None,
+                             id_from: int = None, id_to: int = None,
+                             search_mode: str = None, conditions: List[Dict] = None):
         """
         构建通用的过滤查询条件
         
         Args:
             query: SQLAlchemy 查询对象
-            search: 搜索关键词
+            search: 简单搜索关键词（支持空格分隔多关键词，-前缀排除）
             model_filter: 模型筛选
             app_filter: 应用筛选
+            status_filter: 状态筛选 (success/error/pending)
+            date_from: 开始日期 (YYYY-MM-DD)
+            date_to: 结束日期 (YYYY-MM-DD)
+            min_tokens: 最小token数
+            max_tokens: 最大token数
+            min_duration: 最小耗时（秒）
+            max_duration: 最大耗时（秒）
+            search_field: 搜索字段 (all/request/response/error)
+            id_from: 起始ID
+            id_to: 结束ID
+            search_mode: 搜索模式 (and/or)
+            conditions: 高级条件列表，每个条件是一个字典，包含:
+                - field: 字段名 (role, content, model, app, param, feature等)
+                - operator: 操作符 (contains, not_contains, equals, not_equals, exists, not_exists)
+                - value: 值
+                - role: 针对哪个角色 (用于 content 字段)
         
         Returns:
             添加了过滤条件的查询对象
         """
-        # 全文搜索
+        # 简单搜索（保留原有逻辑）
         if search:
-            search_filter = f"%{search}%"
-            if self.db_type == 'postgresql':
-                # PostgreSQL 使用 ILIKE 进行大小写不敏感搜索
-                query = query.filter(
-                    (APIRequest.model.ilike(search_filter)) |
-                    (APIRequest.app_name.ilike(search_filter)) |
-                    (APIRequest.request_content.ilike(search_filter)) |
-                    (APIRequest.response_content.ilike(search_filter)) |
-                    (APIRequest.error_message.ilike(search_filter))
-                )
-            else:
-                # SQLite 使用 LIKE
-                query = query.filter(
-                    (APIRequest.model.like(search_filter)) |
-                    (APIRequest.app_name.like(search_filter)) |
-                    (APIRequest.request_content.like(search_filter)) |
-                    (APIRequest.response_content.like(search_filter)) |
-                    (APIRequest.error_message.like(search_filter))
-                )
+            # 解析搜索词：支持空格分隔，-前缀表示排除
+            include_terms = []
+            exclude_terms = []
+            
+            # 处理引号内的短语
+            tokens = re.findall(r'"([^"]+)"|(\S+)', search)
+            for quoted, unquoted in tokens:
+                term = quoted if quoted else unquoted
+                if term.startswith('-') and len(term) > 1:
+                    exclude_terms.append(term[1:])
+                elif term and term != '-':
+                    include_terms.append(term)
+            
+            def build_term_filter(term, exclude=False):
+                """构建单个词的搜索条件"""
+                search_filter = f"%{term}%"
+                
+                if search_field == 'request':
+                    if self.db_type == 'postgresql':
+                        condition = APIRequest.request_content.ilike(search_filter)
+                    else:
+                        condition = APIRequest.request_content.like(search_filter)
+                elif search_field == 'response':
+                    if self.db_type == 'postgresql':
+                        condition = APIRequest.response_content.ilike(search_filter)
+                    else:
+                        condition = APIRequest.response_content.like(search_filter)
+                elif search_field == 'error':
+                    if self.db_type == 'postgresql':
+                        condition = APIRequest.error_message.ilike(search_filter)
+                    else:
+                        condition = APIRequest.error_message.like(search_filter)
+                else:
+                    # 搜索所有字段
+                    if self.db_type == 'postgresql':
+                        condition = or_(
+                            APIRequest.model.ilike(search_filter),
+                            APIRequest.app_name.ilike(search_filter),
+                            APIRequest.request_content.ilike(search_filter),
+                            APIRequest.response_content.ilike(search_filter),
+                            APIRequest.error_message.ilike(search_filter)
+                        )
+                    else:
+                        condition = or_(
+                            APIRequest.model.like(search_filter),
+                            APIRequest.app_name.like(search_filter),
+                            APIRequest.request_content.like(search_filter),
+                            APIRequest.response_content.like(search_filter),
+                            APIRequest.error_message.like(search_filter)
+                        )
+                
+                return not_(condition) if exclude else condition
+            
+            # 构建包含条件
+            if include_terms:
+                if search_mode == 'or':
+                    include_conditions = [build_term_filter(term) for term in include_terms]
+                    query = query.filter(or_(*include_conditions))
+                else:
+                    for term in include_terms:
+                        query = query.filter(build_term_filter(term))
+            
+            # 构建排除条件
+            for term in exclude_terms:
+                query = query.filter(build_term_filter(term, exclude=True))
+        
+        # 高级条件筛选
+        if conditions:
+            for cond in conditions:
+                query = self._apply_condition(query, cond)
         
         # 模型筛选
         if model_filter:
@@ -263,14 +337,251 @@ class Database:
         if app_filter:
             query = query.filter(APIRequest.app_name == app_filter)
         
+        # 状态筛选
+        if status_filter:
+            if status_filter == 'success':
+                query = query.filter(APIRequest.status_code == 200)
+            elif status_filter == 'error':
+                query = query.filter(APIRequest.status_code != 200, APIRequest.status_code != 0)
+            elif status_filter == 'pending':
+                query = query.filter(APIRequest.status_code == 0)
+        
+        # ID范围筛选
+        if id_from is not None:
+            query = query.filter(APIRequest.id >= id_from)
+        
+        if id_to is not None:
+            query = query.filter(APIRequest.id <= id_to)
+        
+        # 时间范围筛选
+        if date_from:
+            try:
+                from_date = datetime.strptime(date_from, '%Y-%m-%d').replace(tzinfo=UTC8)
+                query = query.filter(APIRequest.timestamp >= from_date)
+            except ValueError:
+                pass
+        
+        if date_to:
+            try:
+                to_date = datetime.strptime(date_to, '%Y-%m-%d').replace(tzinfo=UTC8) + timedelta(days=1)
+                query = query.filter(APIRequest.timestamp < to_date)
+            except ValueError:
+                pass
+        
+        # Token范围筛选
+        if min_tokens is not None and min_tokens > 0:
+            query = query.filter(APIRequest.total_tokens >= min_tokens)
+        
+        if max_tokens is not None and max_tokens > 0:
+            query = query.filter(APIRequest.total_tokens <= max_tokens)
+        
+        # 耗时范围筛选
+        if min_duration is not None and min_duration > 0:
+            query = query.filter(APIRequest.duration >= min_duration)
+        
+        if max_duration is not None and max_duration > 0:
+            query = query.filter(APIRequest.duration <= max_duration)
+        
+        return query
+    
+    def _apply_condition(self, query, cond: Dict):
+        """
+        应用单个高级条件
+        
+        条件类型:
+        1. role_filter: 筛选包含/不包含特定角色的请求
+           - field: "role", value: "system/user/assistant/tool", operator: "exists/not_exists"
+        
+        2. role_content: 筛选特定角色消息内容
+           - field: "role_content", role: "user/assistant/system", value: "关键词", operator: "contains/not_contains"
+        
+        3. message_count: 消息数量筛选
+           - field: "message_count", operator: "gte/lte/eq", value: 数字
+        
+        4. has_feature: 特征筛选
+           - field: "has_feature", value: "tools/images/functions/stream/error"
+        
+        5. param: 请求参数筛选
+           - field: "param", param_name: "temperature/max_tokens/...", operator: "eq/gte/lte", value: 值
+        
+        6. first_message / last_message: 首条/末条消息内容
+           - field: "first_message/last_message", operator: "contains/not_contains", value: "关键词"
+        """
+        field = cond.get('field', '')
+        operator = cond.get('operator', 'contains')
+        value = cond.get('value', '')
+        negate = cond.get('negate', False)
+        
+        like_func = APIRequest.request_content.ilike if self.db_type == 'postgresql' else APIRequest.request_content.like
+        resp_like_func = APIRequest.response_content.ilike if self.db_type == 'postgresql' else APIRequest.response_content.like
+        
+        condition = None
+        
+        if field == 'role':
+            # 角色存在性筛选: 检查 messages 中是否有特定角色
+            # JSON 中角色格式: "role": "system" 或 "role":"system"
+            role_pattern = f'%"role"%:%"{value}"%'
+            if operator == 'exists':
+                condition = like_func(role_pattern)
+            else:  # not_exists
+                condition = not_(like_func(role_pattern))
+        
+        elif field == 'role_content':
+            # 特定角色的消息内容筛选
+            # 构建匹配模式：匹配 "role": "xxx" 后面跟着的 "content": "...value..."
+            role = cond.get('role', 'user')
+            content_value = value
+            
+            # 简化实现：检查同时包含指定角色和内容关键词
+            role_pattern = f'%"role"%:%"{role}"%'
+            content_pattern = f'%{content_value}%'
+            
+            if operator == 'contains':
+                # 同时满足角色存在和内容包含
+                condition = and_(like_func(role_pattern), like_func(content_pattern))
+            else:  # not_contains
+                # 有该角色但内容不包含，或者没有该角色
+                condition = or_(
+                    not_(like_func(role_pattern)),
+                    and_(like_func(role_pattern), not_(like_func(content_pattern)))
+                )
+        
+        elif field == 'any_content':
+            # 任意消息内容包含
+            content_pattern = f'%{value}%'
+            if operator == 'contains':
+                condition = or_(like_func(content_pattern), resp_like_func(content_pattern))
+            else:
+                condition = and_(not_(like_func(content_pattern)), not_(resp_like_func(content_pattern)))
+        
+        elif field == 'request_content':
+            # 仅请求内容
+            content_pattern = f'%{value}%'
+            if operator == 'contains':
+                condition = like_func(content_pattern)
+            else:
+                condition = not_(like_func(content_pattern))
+        
+        elif field == 'response_content':
+            # 仅响应内容
+            content_pattern = f'%{value}%'
+            if operator == 'contains':
+                condition = resp_like_func(content_pattern)
+            else:
+                condition = not_(resp_like_func(content_pattern))
+        
+        elif field == 'has_feature':
+            # 特征存在性
+            if value == 'tools':
+                # 检查是否有工具定义或工具调用
+                pattern = '%"tools"%:%[%'
+                call_pattern = '%"tool_calls"%:%[%'
+                condition = or_(like_func(pattern), like_func(call_pattern), resp_like_func(call_pattern))
+            elif value == 'tool_calls':
+                # 只检查工具调用（响应中）
+                pattern = '%"tool_calls"%:%[%'
+                condition = resp_like_func(pattern)
+            elif value == 'images':
+                # 检查是否有图片
+                pattern = '%"image_url"%:%'
+                condition = like_func(pattern)
+            elif value == 'functions':
+                # 检查是否有函数定义
+                pattern = '%"functions"%:%[%'
+                condition = like_func(pattern)
+            elif value == 'stream':
+                # 检查是否是流式请求
+                pattern = '%"stream"%:%true%'
+                condition = like_func(pattern)
+            elif value == 'error':
+                # 有错误
+                condition = and_(
+                    APIRequest.status_code != 200,
+                    APIRequest.status_code != 0
+                )
+            elif value == 'system_prompt':
+                # 有系统提示词
+                pattern = '%"role"%:%"system"%'
+                condition = like_func(pattern)
+            elif value == 'long_context':
+                # 长上下文（消息数 > 10，通过多个 role 出现来估算）
+                # 简化：检查是否有多个 user 角色
+                condition = APIRequest.request_content.like('%"role"%"user"%"role"%"user"%')
+            
+            if negate and condition is not None:
+                condition = not_(condition)
+        
+        elif field == 'param':
+            # 请求参数筛选
+            param_name = cond.get('param_name', '')
+            if param_name:
+                # 构建 JSON 键值匹配模式
+                if operator == 'eq':
+                    pattern = f'%"{param_name}"%:%{value}%'
+                    condition = like_func(pattern)
+                elif operator == 'exists':
+                    pattern = f'%"{param_name}"%:%'
+                    condition = like_func(pattern)
+                elif operator == 'not_exists':
+                    pattern = f'%"{param_name}"%:%'
+                    condition = not_(like_func(pattern))
+        
+        elif field == 'model_contains':
+            # 模型名包含
+            if operator == 'contains':
+                if self.db_type == 'postgresql':
+                    condition = APIRequest.model.ilike(f'%{value}%')
+                else:
+                    condition = APIRequest.model.like(f'%{value}%')
+            else:
+                if self.db_type == 'postgresql':
+                    condition = not_(APIRequest.model.ilike(f'%{value}%'))
+                else:
+                    condition = not_(APIRequest.model.like(f'%{value}%'))
+        
+        elif field == 'app_contains':
+            # 应用名包含
+            if operator == 'contains':
+                if self.db_type == 'postgresql':
+                    condition = APIRequest.app_name.ilike(f'%{value}%')
+                else:
+                    condition = APIRequest.app_name.like(f'%{value}%')
+            else:
+                if self.db_type == 'postgresql':
+                    condition = not_(APIRequest.app_name.ilike(f'%{value}%'))
+                else:
+                    condition = not_(APIRequest.app_name.like(f'%{value}%'))
+        
+        elif field == 'error_contains':
+            # 错误信息包含
+            err_like = APIRequest.error_message.ilike if self.db_type == 'postgresql' else APIRequest.error_message.like
+            if operator == 'contains':
+                condition = err_like(f'%{value}%')
+            else:
+                condition = not_(err_like(f'%{value}%'))
+        
+        # 应用条件
+        if condition is not None:
+            query = query.filter(condition)
+        
         return query
     
     def get_requests_with_stats(self, page: int = 1, page_size: int = 50, search: str = None, 
-                                model_filter: str = None, app_filter: str = None) -> Dict[str, Any]:
+                                model_filter: str = None, app_filter: str = None,
+                                status_filter: str = None, date_from: str = None,
+                                date_to: str = None, min_tokens: int = None,
+                                max_tokens: int = None, min_duration: float = None,
+                                max_duration: float = None, search_field: str = None,
+                                sort_by: str = None, sort_order: str = None,
+                                id_from: int = None, id_to: int = None,
+                                search_mode: str = None, conditions: List[Dict] = None) -> Dict[str, Any]:
         """
         一次查询获取请求列表、统计信息和筛选选项
         
-        优化：合并了原来的 get_requests、get_statistics、get_unique_models、get_unique_apps 四次查询为一次会话
+        Args:
+            sort_by: 排序字段 (time/tokens/duration)
+            sort_order: 排序方向 (asc/desc)
+            conditions: 高级筛选条件列表
         
         Returns:
             包含 result, stats, all_models, all_apps 的字典
@@ -279,20 +590,44 @@ class Database:
         try:
             # 构建基础查询
             base_query = session.query(APIRequest)
-            filtered_query = self._build_filter_query(base_query, search, model_filter, app_filter)
+            filtered_query = self._build_filter_query(
+                base_query, search, model_filter, app_filter,
+                status_filter, date_from, date_to, min_tokens,
+                max_tokens, min_duration, max_duration, search_field,
+                id_from, id_to, search_mode, conditions
+            )
             
-            # 1. 获取分页数据（只查询需要的列，避免加载大文本字段）
+            # 1. 获取分页数据
             offset = (page - 1) * page_size
             
-            # 使用子查询优化：先获取ID，再获取详细数据
+            # 获取总数
             count_query = filtered_query.with_entities(func.count(APIRequest.id))
             total = count_query.scalar()
             
+            # 确定排序方式
+            if sort_by == 'tokens':
+                order_column = APIRequest.total_tokens
+            elif sort_by == 'duration':
+                order_column = APIRequest.duration
+            else:
+                order_column = APIRequest.timestamp
+            
+            # 确定排序方向
+            if sort_order == 'asc':
+                ordered_query = filtered_query.order_by(order_column.asc())
+            else:
+                ordered_query = filtered_query.order_by(order_column.desc())
+            
             # 获取分页记录
-            requests = filtered_query.order_by(APIRequest.timestamp.desc()).offset(offset).limit(page_size).all()
+            requests = ordered_query.offset(offset).limit(page_size).all()
             
             # 2. 获取统计数据（使用同一个过滤条件）
-            stats_query = self._build_filter_query(session.query(APIRequest), search, model_filter, app_filter)
+            stats_query = self._build_filter_query(
+                session.query(APIRequest), search, model_filter, app_filter,
+                status_filter, date_from, date_to, min_tokens,
+                max_tokens, min_duration, max_duration, search_field,
+                id_from, id_to, search_mode, conditions
+            )
             stats = stats_query.with_entities(
                 func.count(APIRequest.id).label('total_requests'),
                 func.coalesce(func.sum(APIRequest.input_tokens), 0).label('total_input_tokens'),

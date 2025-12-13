@@ -56,7 +56,7 @@
             border: 1px solid #d1d9e0;
             border-radius: 6px;
             font-size: 0.9rem;
-            width: 300px;
+            width: 250px;
         }
 
         .search-btn {
@@ -71,6 +71,231 @@
 
         .search-btn:hover {
             background: #1e3f73;
+        }
+        
+        .advanced-search-toggle {
+            background: none;
+            border: 1px solid #d1d9e0;
+            color: #4a5568;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .advanced-search-toggle:hover {
+            background: #f8fafc;
+            border-color: #2c5aa0;
+            color: #2c5aa0;
+        }
+        
+        .advanced-search-toggle.active {
+            background: #e0e7ff;
+            border-color: #2c5aa0;
+            color: #2c5aa0;
+        }
+        
+        .advanced-search-panel {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        .advanced-search-panel.show {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .advanced-search-content {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 900px;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .advanced-search-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .advanced-search-header h3 {
+            margin: 0;
+            color: #1f2937;
+            font-size: 1.25rem;
+        }
+        
+        .close-advanced-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+        
+        .close-advanced-btn:hover {
+            color: #1f2937;
+        }
+        
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .filter-group label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .filter-group input, .filter-group select {
+            padding: 0.4rem 0.6rem;
+            border: 1px solid #d1d9e0;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            min-width: 120px;
+        }
+        
+        .filter-group input[type="number"] {
+            width: 100px;
+        }
+        
+        .filter-group input[type="date"] {
+            width: 140px;
+        }
+        
+        .filter-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e1e5e9;
+        }
+        
+        .quick-filter-btn {
+            padding: 0.3rem 0.6rem;
+            border: 1px solid #d1d9e0;
+            background: white;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: #4a5568;
+        }
+        
+        .quick-filter-btn:hover {
+            background: #f8fafc;
+            border-color: #2c5aa0;
+        }
+        
+        .quick-filter-btn.active {
+            background: #2c5aa0;
+            color: white;
+            border-color: #2c5aa0;
+        }
+        
+        .filter-summary {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .filter-summary .clear-btn {
+            background: none;
+            border: none;
+            color: #1e40af;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 0.85rem;
+        }
+        
+        .match-snippet {
+            background: #fefce8;
+            border: 1px solid #fde047;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .match-snippet .source-tag {
+            display: inline-block;
+            background: #fde047;
+            color: #713f12;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            margin-right: 0.5rem;
+        }
+        
+        .match-snippet .snippet-text {
+            color: #374151;
+        }
+        
+        .match-snippet .highlight {
+            background: #fde047;
+            font-weight: 600;
+        }
+        
+        .match-snippets {
+            margin-top: 0.5rem;
+        }
+        
+        .request-row .match-snippet {
+            font-size: 0.75rem;
+            padding: 0.3rem 0.5rem;
+            margin-top: 0.3rem;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .request-row .match-snippet:hover {
+            white-space: normal;
+            overflow: visible;
+        }
+        
+        /* 高亮样式 */
+        .highlight {
+            background: #fde047 !important;
+            color: #713f12 !important;
+            padding: 0 2px;
+            border-radius: 2px;
         }
 
         .main-content {
@@ -380,6 +605,83 @@
             background: #fee2e2;
             color: #991b1b;
         }
+        
+        /* 条件构建器样式 */
+        .condition-item {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            padding: 0.5rem;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .condition-item select, .condition-item input {
+            padding: 0.4rem 0.6rem;
+            border: 1px solid #d1d9e0;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .condition-item .field-select {
+            min-width: 150px;
+        }
+        
+        .condition-item .operator-select {
+            min-width: 100px;
+        }
+        
+        .condition-item .value-input {
+            min-width: 150px;
+            flex: 1;
+        }
+        
+        .condition-item .role-select {
+            min-width: 100px;
+        }
+        
+        .condition-item .remove-btn {
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+            padding: 0.4rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        
+        .condition-item .remove-btn:hover {
+            background: #fecaca;
+        }
+        
+        .condition-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin: 0.25rem;
+        }
+        
+        .condition-tag .remove-tag {
+            background: none;
+            border: none;
+            color: #6366f1;
+            cursor: pointer;
+            padding: 0 0.2rem;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        
+        .condition-tag .remove-tag:hover {
+            color: #dc2626;
+        }
     </style>
 </head>
 <body>
@@ -387,34 +689,176 @@
         <div class="container">
             <div class="header-content">
                 <div class="logo">{{ web_title }}</div>
-                <form class="search-box" method="get" action="/">
+                <form class="search-box" method="post" action="/search" id="searchForm">
                     <input type="hidden" name="page" value="1">
                     <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                        <input type="text" name="search" class="search-input" placeholder="搜索请求内容、模型、错误信息..." value="{{ search }}">
+                        <input type="text" name="search" class="search-input" placeholder="搜索 (空格分隔多词, -排除)" value="{{ search }}" id="searchInput" title="支持多关键词搜索：空格分隔多个词，-号开头排除该词，引号包裹精确短语">
                         
-                        <select name="model_filter" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
+                        <select name="search_field" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: white; font-size: 0.85rem;">
+                            <option value="all" {% if search_field == 'all' or not search_field %}selected{% endif %}>全部字段</option>
+                            <option value="request" {% if search_field == 'request' %}selected{% endif %}>仅请求</option>
+                            <option value="response" {% if search_field == 'response' %}selected{% endif %}>仅响应</option>
+                            <option value="error" {% if search_field == 'error' %}selected{% endif %}>仅错误</option>
+                        </select>
+                        
+                        <select name="search_mode" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: white; font-size: 0.85rem;" title="AND=所有词都匹配, OR=任一词匹配">
+                            <option value="and" {% if search_mode == 'and' or not search_mode %}selected{% endif %}>AND</option>
+                            <option value="or" {% if search_mode == 'or' %}selected{% endif %}>OR</option>
+                        </select>
+                        
+                        <button type="submit" class="search-btn">搜索</button>
+                        <button type="button" class="advanced-search-toggle" onclick="toggleAdvancedSearch()" id="advancedToggle">
+                            <span>高级筛选</span>
+                            <span id="advancedArrow">▼</span>
+                        </button>
+                        <button type="button" class="search-btn" style="background: #6b7280;" onclick="clearAllFilters()">清除</button>
+                    </div>
+                </form>
+            </div>
+            
+        </div>
+    </header>
+    
+    <!-- 高级搜索面板（全屏模态框） -->
+    <div class="advanced-search-panel" id="advancedSearchPanel">
+        <div class="advanced-search-content">
+            <div class="advanced-search-header">
+                <h3>🔍 高级搜索</h3>
+                <button type="button" class="close-advanced-btn" onclick="toggleAdvancedSearch()">&times;</button>
+            </div>
+            
+            <div class="filter-row">
+                    <div class="filter-group">
+                        <label>模型</label>
+                        <select name="model_filter" form="searchForm">
                             <option value="">所有模型</option>
                             {% for model in all_models %}
                             <option value="{{ model }}" {% if model_filter == model %}selected{% endif %}>{{ model }}</option>
                             {% endfor %}
                         </select>
-                        
-                        <select name="app_filter" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: white;">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>应用</label>
+                        <select name="app_filter" form="searchForm">
                             <option value="">所有应用</option>
                             {% for app in all_apps %}
                             <option value="{{ app }}" {% if app_filter == app %}selected{% endif %}>{{ app }}</option>
                             {% endfor %}
                         </select>
-                        
-                        <button type="submit" class="search-btn">筛选</button>
-                        {% if search or model_filter or app_filter %}
-                        <a href="/" class="search-btn" style="background: #6b7280; text-decoration: none;">清除</a>
-                        {% endif %}
                     </div>
-                </form>
-            </div>
+                    
+                    <div class="filter-group">
+                        <label>状态</label>
+                        <select name="status_filter" form="searchForm">
+                            <option value="">所有状态</option>
+                            <option value="success" {% if status_filter == 'success' %}selected{% endif %}>✅ 成功</option>
+                            <option value="error" {% if status_filter == 'error' %}selected{% endif %}>❌ 失败</option>
+                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>⏳ 处理中</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>排序方式</label>
+                        <select name="sort_by" form="searchForm">
+                            <option value="time" {% if sort_by == 'time' or not sort_by %}selected{% endif %}>⏰ 时间</option>
+                            <option value="tokens" {% if sort_by == 'tokens' %}selected{% endif %}>🔢 Token数</option>
+                            <option value="duration" {% if sort_by == 'duration' %}selected{% endif %}>⏱️ 耗时</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>排序方向</label>
+                        <select name="sort_order" form="searchForm">
+                            <option value="desc" {% if sort_order == 'desc' or not sort_order %}selected{% endif %}>↓ 降序</option>
+                            <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>↑ 升序</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>开始日期</label>
+                        <input type="date" name="date_from" form="searchForm" value="{{ date_from }}">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>结束日期</label>
+                        <input type="date" name="date_to" form="searchForm" value="{{ date_to }}">
+                    </div>
+                    
+                    <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                        <button type="button" class="quick-filter-btn" onclick="setDateRange('today')">今天</button>
+                        <button type="button" class="quick-filter-btn" onclick="setDateRange('week')">最近7天</button>
+                        <button type="button" class="quick-filter-btn" onclick="setDateRange('month')">最近30天</button>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>起始ID</label>
+                        <input type="number" name="id_from" form="searchForm" placeholder="从" value="{{ id_from }}" min="1">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>结束ID</label>
+                        <input type="number" name="id_to" form="searchForm" placeholder="到" value="{{ id_to }}" min="1">
+                    </div>
+                </div>
+                
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>最小Token</label>
+                        <input type="number" name="min_tokens" form="searchForm" placeholder="0" value="{{ min_tokens }}" min="0">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>最大Token</label>
+                        <input type="number" name="max_tokens" form="searchForm" placeholder="不限" value="{{ max_tokens }}" min="0">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>最小耗时(秒)</label>
+                        <input type="number" name="min_duration" form="searchForm" placeholder="0" value="{{ min_duration }}" min="0" step="0.1">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>最大耗时(秒)</label>
+                        <input type="number" name="max_duration" form="searchForm" placeholder="不限" value="{{ max_duration }}" min="0" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="filter-actions">
+                    <button type="submit" form="searchForm" class="search-btn">应用筛选</button>
+                    <button type="button" class="search-btn" style="background: #6b7280;" onclick="clearAdvancedFilters()">清除高级筛选</button>
+                </div>
+                
+                <!-- 高级条件构建器 -->
+                <div style="margin-top: 1rem; padding: 1rem; background: #fff; border: 1px solid #e1e5e9; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <h5 style="margin: 0; color: #374151;">🔍 高级条件构建器</h5>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button type="button" class="quick-filter-btn" onclick="copyConditions()" title="复制当前条件">📋 复制</button>
+                            <button type="button" class="quick-filter-btn" onclick="pasteConditions()" title="粘贴条件">📥 粘贴</button>
+                            <button type="button" class="quick-filter-btn" style="background: #2c5aa0; color: white;" onclick="addCondition()">+ 添加条件</button>
+                        </div>
+                    </div>
+                    
+                    <div id="conditionsContainer">
+                        <!-- 条件项会动态添加到这里 -->
+                    </div>
+                    
+                    <input type="hidden" name="cond" id="conditionsInput" form="searchForm">
+                </div>
+                
+                <!-- 搜索语法说明 -->
+                <div style="margin-top: 0.75rem; padding: 0.75rem; background: #f8fafc; border-radius: 6px; font-size: 0.8rem; color: #6b7280;">
+                    <strong>搜索语法：</strong>
+                    <span style="margin-left: 0.5rem;">多词搜索用空格分隔</span> |
+                    <span><code>-词</code> 排除包含该词的结果</span> |
+                    <span><code>"精确短语"</code> 精确匹配短语</span> |
+                    <span>AND模式=所有词都匹配，OR模式=任一词匹配</span>
+                </div>
         </div>
-    </header>
+    </div>
 
     <main class="main-content">
         <div class="container">
@@ -447,21 +891,19 @@
             <!-- 请求记录表格 -->
             <div class="requests-table">
                 <div class="table-header">
-                    {% if search or model_filter or app_filter %}
-                    筛选结果 (<span id="header-total">{{ result.total }}</span> 条记录)
-                    {% if search %}
-                    - 搜索: "{{ search }}"
-                    {% endif %}
-                    {% if model_filter %}
-                    - 模型: {{ model_filter }}
-                    {% endif %}
-                    {% if app_filter %}
-                    - 应用: {{ app_filter }}
-                    {% endif %}
+                    {% if filter_summary %}
+                    <span id="filter-summary-text">筛选结果 (<span id="header-total">{{ result.total }}</span> 条记录)</span>
                     {% else %}
                     请求记录 (<span id="header-total">{{ result.total }}</span> 条记录)
                     {% endif %}
                 </div>
+                
+                {% if filter_summary %}
+                <div class="filter-summary" id="filterSummaryBar">
+                    <span>{{ filter_summary }}</span>
+                    <button class="clear-btn" onclick="clearAllFilters()">清除全部筛选</button>
+                </div>
+                {% endif %}
                 <div class="load-progress" id="load-progress">
                     <div class="progress-text">
                         <span id="progress-label">正在加载列表</span>
@@ -910,6 +1352,554 @@
     </style>
 
     <script>
+        // 高级条件数组
+        let advancedConditions = [];
+        let conditionIdCounter = 0;
+        
+        // 条件字段配置
+        const conditionFields = {
+            'role': {
+                label: '消息角色',
+                operators: [
+                    { value: 'exists', label: '包含' },
+                    { value: 'not_exists', label: '不包含' }
+                ],
+                values: [
+                    { value: 'system', label: '系统消息 (system)' },
+                    { value: 'user', label: '用户消息 (user)' },
+                    { value: 'assistant', label: '助手消息 (assistant)' },
+                    { value: 'tool', label: '工具消息 (tool)' }
+                ],
+                needsValue: true,
+                isSelect: true
+            },
+            'role_content': {
+                label: '角色内容',
+                operators: [
+                    { value: 'contains', label: '包含' },
+                    { value: 'not_contains', label: '不包含' }
+                ],
+                roles: [
+                    { value: 'system', label: '系统' },
+                    { value: 'user', label: '用户' },
+                    { value: 'assistant', label: '助手' }
+                ],
+                needsValue: true,
+                needsRole: true,
+                placeholder: '输入要搜索的内容'
+            },
+            'any_content': {
+                label: '任意内容',
+                operators: [
+                    { value: 'contains', label: '包含' },
+                    { value: 'not_contains', label: '不包含' }
+                ],
+                needsValue: true,
+                placeholder: '输入要搜索的内容'
+            },
+            'has_feature': {
+                label: '请求特征',
+                operators: [
+                    { value: 'has', label: '有' },
+                    { value: 'not_has', label: '无' }
+                ],
+                values: [
+                    { value: 'system_prompt', label: '系统提示词' },
+                    { value: 'tools', label: '工具定义' },
+                    { value: 'tool_calls', label: '工具调用' },
+                    { value: 'images', label: '图片' },
+                    { value: 'functions', label: '函数定义' },
+                    { value: 'stream', label: '流式请求' },
+                    { value: 'error', label: '错误' }
+                ],
+                needsValue: true,
+                isSelect: true
+            },
+            'model_contains': {
+                label: '模型名',
+                operators: [
+                    { value: 'contains', label: '包含' },
+                    { value: 'not_contains', label: '不包含' }
+                ],
+                needsValue: true,
+                placeholder: '输入模型名关键词'
+            },
+            'app_contains': {
+                label: '应用名',
+                operators: [
+                    { value: 'contains', label: '包含' },
+                    { value: 'not_contains', label: '不包含' }
+                ],
+                needsValue: true,
+                placeholder: '输入应用名关键词'
+            },
+            'error_contains': {
+                label: '错误信息',
+                operators: [
+                    { value: 'contains', label: '包含' },
+                    { value: 'not_contains', label: '不包含' }
+                ],
+                needsValue: true,
+                placeholder: '输入错误信息关键词'
+            },
+            'param': {
+                label: '请求参数',
+                operators: [
+                    { value: 'exists', label: '存在' },
+                    { value: 'not_exists', label: '不存在' },
+                    { value: 'eq', label: '等于' }
+                ],
+                params: [
+                    { value: 'temperature', label: 'temperature' },
+                    { value: 'max_tokens', label: 'max_tokens' },
+                    { value: 'top_p', label: 'top_p' },
+                    { value: 'presence_penalty', label: 'presence_penalty' },
+                    { value: 'frequency_penalty', label: 'frequency_penalty' }
+                ],
+                needsParam: true,
+                needsValue: false // 只有 eq 操作符需要值
+            }
+        };
+        
+        function addCondition(preset = null) {
+            const id = conditionIdCounter++;
+            const container = document.getElementById('conditionsContainer');
+            
+            const conditionHtml = `
+                <div class="condition-item" id="condition-${id}">
+                    <select class="field-select" onchange="updateConditionFields(${id})" id="field-${id}">
+                        <option value="">选择条件类型</option>
+                        ${Object.entries(conditionFields).map(([key, config]) => 
+                            `<option value="${key}">${config.label}</option>`
+                        ).join('')}
+                    </select>
+                    <div id="condition-controls-${id}" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;"></div>
+                    <button type="button" class="remove-btn" onclick="removeCondition(${id})">✕</button>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', conditionHtml);
+            
+            if (preset) {
+                applyPreset(id, preset);
+            }
+        }
+        
+        function updateConditionFields(id) {
+            const fieldSelect = document.getElementById(`field-${id}`);
+            const controlsContainer = document.getElementById(`condition-controls-${id}`);
+            const fieldType = fieldSelect.value;
+            
+            if (!fieldType || !conditionFields[fieldType]) {
+                controlsContainer.innerHTML = '';
+                return;
+            }
+            
+            const config = conditionFields[fieldType];
+            let html = '';
+            
+            // 操作符选择
+            html += `<select class="operator-select" id="operator-${id}">`;
+            config.operators.forEach(op => {
+                html += `<option value="${op.value}">${op.label}</option>`;
+            });
+            html += '</select>';
+            
+            // 如果需要角色选择 (role_content)
+            if (config.needsRole) {
+                html += `<select class="role-select" id="role-${id}">`;
+                config.roles.forEach(role => {
+                    html += `<option value="${role.value}">${role.label}</option>`;
+                });
+                html += '</select>';
+                html += '<span style="color: #6b7280; font-size: 0.8rem;">的消息</span>';
+            }
+            
+            // 如果需要参数名选择 (param)
+            if (config.needsParam) {
+                html += `<select class="param-select" id="param-${id}">`;
+                config.params.forEach(param => {
+                    html += `<option value="${param.value}">${param.label}</option>`;
+                });
+                html += '</select>';
+            }
+            
+            // 值输入
+            if (config.needsValue) {
+                if (config.isSelect && config.values) {
+                    html += `<select class="value-input" id="value-${id}">`;
+                    config.values.forEach(val => {
+                        html += `<option value="${val.value}">${val.label}</option>`;
+                    });
+                    html += '</select>';
+                } else {
+                    html += `<input type="text" class="value-input" id="value-${id}" placeholder="${config.placeholder || '输入值'}">`;
+                }
+            }
+            
+            controlsContainer.innerHTML = html;
+        }
+        
+        function removeCondition(id) {
+            const element = document.getElementById(`condition-${id}`);
+            if (element) {
+                element.remove();
+            }
+        }
+        
+        // 复制条件到剪贴板
+        function copyConditions() {
+            const conditions = collectConditions();
+            if (conditions.length === 0) {
+                alert('没有条件可复制');
+                return;
+            }
+            const encoded = btoa(encodeURIComponent(JSON.stringify(conditions)));
+            navigator.clipboard.writeText(encoded).then(() => {
+                alert('条件已复制！可在其他页面粘贴使用');
+            }).catch(() => {
+                prompt('复制以下内容:', encoded);
+            });
+        }
+        
+        // 从剪贴板粘贴条件
+        function pasteConditions() {
+            navigator.clipboard.readText().then(text => {
+                applyConditionsFromText(text);
+            }).catch(() => {
+                const text = prompt('请粘贴条件内容:');
+                if (text) applyConditionsFromText(text);
+            });
+        }
+        
+        function applyConditionsFromText(text) {
+            try {
+                const decoded = JSON.parse(decodeURIComponent(atob(text.trim())));
+                if (Array.isArray(decoded)) {
+                    document.getElementById('conditionsContainer').innerHTML = '';
+                    conditionIdCounter = 0;
+                    decoded.forEach(cond => restoreCondition(cond));
+                } else {
+                    alert('无效的条件格式');
+                }
+            } catch (e) {
+                try {
+                    const decoded = JSON.parse(text.trim());
+                    if (Array.isArray(decoded)) {
+                        document.getElementById('conditionsContainer').innerHTML = '';
+                        conditionIdCounter = 0;
+                        decoded.forEach(cond => restoreCondition(cond));
+                    } else {
+                        alert('无效的条件格式');
+                    }
+                } catch (e2) {
+                    alert('无法解析条件内容');
+                }
+            }
+        }
+        
+        // 恢复单个条件
+        function restoreCondition(cond) {
+            const id = conditionIdCounter++;
+            const container = document.getElementById('conditionsContainer');
+            
+            const conditionHtml = `
+                <div class="condition-item" id="condition-${id}">
+                    <select class="field-select" onchange="updateConditionFields(${id})" id="field-${id}">
+                        <option value="">选择条件类型</option>
+                        ${Object.entries(conditionFields).map(([key, config]) => 
+                            `<option value="${key}">${config.label}</option>`
+                        ).join('')}
+                    </select>
+                    <div id="condition-controls-${id}" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;"></div>
+                    <button type="button" class="remove-btn" onclick="removeCondition(${id})">✕</button>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', conditionHtml);
+            
+            const fieldSelect = document.getElementById(`field-${id}`);
+            fieldSelect.value = cond.field;
+            updateConditionFields(id);
+            
+            setTimeout(() => {
+                const operatorSelect = document.getElementById(`operator-${id}`);
+                const valueInput = document.getElementById(`value-${id}`);
+                const roleSelect = document.getElementById(`role-${id}`);
+                const paramSelect = document.getElementById(`param-${id}`);
+                
+                if (operatorSelect) {
+                    operatorSelect.value = cond.field === 'has_feature' 
+                        ? (cond.negate ? 'not_has' : 'has') 
+                        : (cond.operator || '');
+                }
+                if (valueInput) valueInput.value = cond.value || '';
+                if (roleSelect) roleSelect.value = cond.role || '';
+                if (paramSelect) paramSelect.value = cond.param_name || '';
+            }, 10);
+        }
+        
+        // 从sessionStorage恢复条件
+        function restoreConditionsFromSession() {
+            try {
+                const saved = sessionStorage.getItem('searchParams');
+                if (saved) {
+                    const params = JSON.parse(saved);
+                    if (params.cond) {
+                        const decoded = JSON.parse(decodeURIComponent(atob(params.cond)));
+                        if (Array.isArray(decoded) && decoded.length > 0) {
+                            decoded.forEach(cond => restoreCondition(cond));
+                        }
+                    }
+                    // 恢复表单其他字段
+                    if (params.search) document.querySelector('input[name="search"]').value = params.search;
+                    if (params.search_field) document.querySelector('select[name="search_field"]').value = params.search_field;
+                    if (params.search_mode) document.querySelector('select[name="search_mode"]').value = params.search_mode;
+                }
+            } catch (e) {
+                console.error('Failed to restore conditions:', e);
+            }
+        }
+        
+        function collectConditions() {
+            const conditions = [];
+            const container = document.getElementById('conditionsContainer');
+            const items = container.querySelectorAll('.condition-item');
+            
+            items.forEach(item => {
+                const id = item.id.replace('condition-', '');
+                const fieldSelect = document.getElementById(`field-${id}`);
+                const operatorSelect = document.getElementById(`operator-${id}`);
+                const valueInput = document.getElementById(`value-${id}`);
+                const roleSelect = document.getElementById(`role-${id}`);
+                const paramSelect = document.getElementById(`param-${id}`);
+                
+                const field = fieldSelect?.value;
+                if (!field) return;
+                
+                const condition = { field };
+                
+                if (operatorSelect) {
+                    let operator = operatorSelect.value;
+                    // 处理 has_feature 的特殊操作符
+                    if (field === 'has_feature') {
+                        condition.negate = (operator === 'not_has');
+                        condition.operator = 'exists'; // 内部使用的操作符
+                    } else {
+                        condition.operator = operator;
+                    }
+                }
+                
+                if (valueInput) {
+                    condition.value = valueInput.value;
+                }
+                
+                if (roleSelect) {
+                    condition.role = roleSelect.value;
+                }
+                
+                if (paramSelect) {
+                    condition.param_name = paramSelect.value;
+                }
+                
+                // 验证条件是否完整
+                if (field === 'role' && condition.value) {
+                    conditions.push(condition);
+                } else if (field === 'role_content' && condition.role && condition.value) {
+                    conditions.push(condition);
+                } else if (field === 'has_feature' && condition.value) {
+                    conditions.push(condition);
+                } else if ((field === 'any_content' || field === 'model_contains' || field === 'app_contains' || field === 'error_contains') && condition.value) {
+                    conditions.push(condition);
+                } else if (field === 'param' && condition.param_name) {
+                    if (condition.operator !== 'eq' || condition.value) {
+                        conditions.push(condition);
+                    }
+                }
+            });
+            
+            return conditions;
+        }
+        
+        // 表单提交改为AJAX POST
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const conditions = collectConditions();
+            const conditionsInput = document.getElementById('conditionsInput');
+            
+            if (conditions.length > 0) {
+                conditionsInput.value = btoa(encodeURIComponent(JSON.stringify(conditions)));
+            } else {
+                conditionsInput.value = '';
+            }
+            
+            // 关闭高级搜索面板
+            if (advancedSearchVisible) {
+                toggleAdvancedSearch();
+            }
+            
+            // 收集表单数据并通过AJAX提交
+            const formData = new FormData(this);
+            formData.set('page', '1'); // 搜索时重置为第一页
+            
+            // 保存搜索参数到sessionStorage用于分页
+            const searchParams = {};
+            formData.forEach((value, key) => {
+                if (value) searchParams[key] = value;
+            });
+            sessionStorage.setItem('searchParams', JSON.stringify(searchParams));
+            
+            // 执行搜索
+            loadRequestsWithParams(searchParams);
+        });
+        
+        // 使用参数加载请求列表
+        async function loadRequestsWithParams(params = null) {
+            setTableLoading();
+            const clientStart = performance.now();
+            startLoadProgress(estimatedLoadMs);
+            
+            try {
+                let response;
+                if (params) {
+                    // POST搜索
+                    response = await fetch('/api/search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(params)
+                    });
+                } else {
+                    // GET默认加载
+                    response = await fetch('/api/requests');
+                }
+                
+                const data = await response.json();
+                renderStats(data.stats);
+                renderPagination(data.result);
+                renderHeaderTotal(data.result.total);
+                renderFilters(data.all_models || [], data.all_apps || []);
+                renderRequestsIncremental(data.result, data.search_keyword);
+                
+                updateFilterSummary(data.filter_summary, data.result.total);
+                
+                const serverMs = data.load_time_ms ? Number(data.load_time_ms) : null;
+                const elapsed = performance.now() - clientStart;
+                finishLoadProgress('success', serverMs || elapsed);
+                if (data.estimated_next_ms) {
+                    estimatedLoadMs = Number(data.estimated_next_ms);
+                }
+            } catch (error) {
+                const tbody = document.getElementById('requests-tbody');
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td class="loading-cell" colspan="7">加载失败：${error.message}</td></tr>`;
+                }
+                finishLoadProgress('error');
+            }
+        }
+        
+        // 高级搜索面板控制
+        let advancedSearchVisible = false;
+        
+        function toggleAdvancedSearch() {
+            const panel = document.getElementById('advancedSearchPanel');
+            const toggle = document.getElementById('advancedToggle');
+            const arrow = document.getElementById('advancedArrow');
+            
+            advancedSearchVisible = !advancedSearchVisible;
+            
+            if (advancedSearchVisible) {
+                panel.classList.add('show');
+                toggle.classList.add('active');
+                arrow.textContent = '▲';
+                document.body.style.overflow = 'hidden';
+            } else {
+                panel.classList.remove('show');
+                toggle.classList.remove('active');
+                arrow.textContent = '▼';
+                document.body.style.overflow = '';
+            }
+        }
+        
+        // 点击面板外部关闭
+        document.getElementById('advancedSearchPanel').addEventListener('click', function(e) {
+            if (e.target === this) {
+                toggleAdvancedSearch();
+            }
+        });
+        
+        // ESC键关闭高级搜索面板
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && advancedSearchVisible) {
+                toggleAdvancedSearch();
+            }
+        });
+        
+        function setDateRange(range) {
+            const today = new Date();
+            const dateFrom = document.querySelector('input[name="date_from"]');
+            const dateTo = document.querySelector('input[name="date_to"]');
+            
+            const formatDate = (d) => d.toISOString().split('T')[0];
+            
+            dateTo.value = formatDate(today);
+            
+            if (range === 'today') {
+                dateFrom.value = formatDate(today);
+            } else if (range === 'week') {
+                const weekAgo = new Date(today);
+                weekAgo.setDate(today.getDate() - 7);
+                dateFrom.value = formatDate(weekAgo);
+            } else if (range === 'month') {
+                const monthAgo = new Date(today);
+                monthAgo.setDate(today.getDate() - 30);
+                dateFrom.value = formatDate(monthAgo);
+            }
+        }
+        
+        function clearAdvancedFilters() {
+            // 只清除高级筛选项，保留搜索关键词
+            document.querySelector('select[name="model_filter"]').value = '';
+            document.querySelector('select[name="app_filter"]').value = '';
+            document.querySelector('select[name="status_filter"]').value = '';
+            document.querySelector('select[name="sort_by"]').value = 'time';
+            document.querySelector('select[name="sort_order"]').value = 'desc';
+            document.querySelector('input[name="date_from"]').value = '';
+            document.querySelector('input[name="date_to"]').value = '';
+            document.querySelector('input[name="id_from"]').value = '';
+            document.querySelector('input[name="id_to"]').value = '';
+            document.querySelector('input[name="min_tokens"]').value = '';
+            document.querySelector('input[name="max_tokens"]').value = '';
+            document.querySelector('input[name="min_duration"]').value = '';
+            document.querySelector('input[name="max_duration"]').value = '';
+        }
+        
+        // 检查是否有高级筛选条件，如果有则自动展开面板
+        function checkAdvancedFilters() {
+            const hasAdvancedFilter = 
+                '{{ model_filter }}' || '{{ app_filter }}' || '{{ status_filter }}' ||
+                '{{ date_from }}' || '{{ date_to }}' || 
+                '{{ min_tokens }}' || '{{ max_tokens }}' ||
+                '{{ min_duration }}' || '{{ max_duration }}' ||
+                '{{ id_from }}' || '{{ id_to }}' ||
+                ('{{ sort_by }}' && '{{ sort_by }}' !== 'time');
+            
+            if (hasAdvancedFilter) {
+                toggleAdvancedSearch();
+            }
+        }
+        
+        // 搜索结果高亮函数
+        function highlightText(text, keyword) {
+            if (!keyword || !text) return text;
+            const regex = new RegExp(`(${escapeRegExp(keyword)})`, 'gi');
+            return text.replace(regex, '<span class="highlight">$1</span>');
+        }
+        
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        
         // 美化显示函数
         function renderRequestDetails(data, contentElement) {
             const requestData = data.request_content;
@@ -1422,30 +2412,35 @@
                 container.innerHTML = '';
                 return;
             }
-            const params = new URLSearchParams(window.location.search);
-            params.delete('request');
             const currentPage = result.page;
             const parts = [];
-            const linkFor = (page) => {
-                params.set('page', page);
-                return `?${params.toString()}`;
-            };
+            
             if (currentPage > 1) {
-                parts.push(`<a href="${linkFor(currentPage - 1)}" class="page-btn">上一页</a>`);
+                parts.push(`<button class="page-btn" onclick="goToPage(${currentPage - 1})">上一页</button>`);
             }
             for (let pageNum = 1; pageNum <= result.pages; pageNum++) {
                 if (pageNum === currentPage) {
                     parts.push(`<span class="page-btn active">${pageNum}</span>`);
                 } else if (pageNum <= 3 || pageNum > result.pages - 3 || (pageNum >= currentPage - 2 && pageNum <= currentPage + 2)) {
-                    parts.push(`<a href="${linkFor(pageNum)}" class="page-btn">${pageNum}</a>`);
+                    parts.push(`<button class="page-btn" onclick="goToPage(${pageNum})">${pageNum}</button>`);
                 } else if (pageNum === 4 || pageNum === result.pages - 3) {
                     parts.push('<span class="page-btn">...</span>');
                 }
             }
             if (currentPage < result.pages) {
-                parts.push(`<a href="${linkFor(currentPage + 1)}" class="page-btn">下一页</a>`);
+                parts.push(`<button class="page-btn" onclick="goToPage(${currentPage + 1})">下一页</button>`);
             }
             container.innerHTML = parts.join('');
+        }
+        
+        function goToPage(page) {
+            // 获取保存的搜索参数
+            let params = {};
+            try {
+                params = JSON.parse(sessionStorage.getItem('searchParams') || '{}');
+            } catch (e) {}
+            params.page = page;
+            loadRequestsWithParams(params);
         }
 
         function statusBadge(code) {
@@ -1454,7 +2449,7 @@
             return '<span class="status-badge status-error">错误</span>';
         }
 
-        function renderRequestsIncremental(result) {
+        function renderRequestsIncremental(result, searchKeyword) {
             const tbody = document.getElementById('requests-tbody');
             if (!tbody) return;
             if (!result.requests || result.requests.length === 0) {
@@ -1478,10 +2473,26 @@
                     const date = timestamp[0] || '';
                     const time = (timestamp[1] || '').split('.')[0] || '';
                     const app = req.app_name ? `<span class="app-tag">${req.app_name}</span>` : '<span style="color: #9ca3af; font-style: italic;">-</span>';
+                    
+                    // 构建匹配片段显示
+                    let snippetHtml = '';
+                    if (searchKeyword && req.match_snippets && req.match_snippets.length > 0) {
+                        snippetHtml = '<div class="match-snippets">';
+                        req.match_snippets.forEach(snippet => {
+                            const sourceNames = {request: '请求', response: '响应', error: '错误'};
+                            const highlightedText = highlightText(escapeHtml(snippet.text), searchKeyword);
+                            snippetHtml += `<div class="match-snippet">
+                                <span class="source-tag">${sourceNames[snippet.source] || snippet.source}</span>
+                                <span class="snippet-text">${highlightedText}</span>
+                            </div>`;
+                        });
+                        snippetHtml += '</div>';
+                    }
+                    
                     rows.push(`<tr class="request-row" onclick="showRequestDetail(${req.id})">
-                        <td><span class="request-id">#${req.id}</span></td>
+                        <td><span class="request-id">#${req.id}</span>${snippetHtml}</td>
                         <td><small style="color: #6b7280;">${date}</small><br>${time}</td>
-                        <td><span class="model-tag">${req.model}</span></td>
+                        <td><span class="model-tag">${searchKeyword ? highlightText(req.model, searchKeyword) : req.model}</span></td>
                         <td>${app}</td>
                         <td>${statusBadge(req.status_code)}</td>
                         <td><div class="token-info"><span class="token-item">输入: ${req.formatted_input_tokens || req.input_tokens || 0}</span><span class="token-item">输出: ${req.formatted_output_tokens || req.output_tokens || 0}</span><span class="token-item">总计: ${req.formatted_total_tokens || req.total_tokens || 0}</span></div></td>
@@ -1534,31 +2545,58 @@
         }
 
         async function loadRequestsList() {
-            setTableLoading();
-            const params = buildQueryParams();
-            const clientStart = performance.now();
-            startLoadProgress(estimatedLoadMs);
+            // 检查是否有保存的搜索参数
+            let params = null;
             try {
-                const response = await fetch(`/api/requests?${params.toString()}`);
-                const data = await response.json();
-                renderStats(data.stats);
-                renderPagination(data.result);
-                renderHeaderTotal(data.result.total);
-                renderFilters(data.all_models || [], data.all_apps || []);
-                renderRequestsIncremental(data.result);
-                const serverMs = data.load_time_ms ? Number(data.load_time_ms) : null;
-                const elapsed = performance.now() - clientStart;
-                finishLoadProgress('success', serverMs || elapsed);
-                if (data.estimated_next_ms) {
-                    estimatedLoadMs = Number(data.estimated_next_ms);
+                const saved = sessionStorage.getItem('searchParams');
+                if (saved) {
+                    params = JSON.parse(saved);
                 }
-            } catch (error) {
-                const tbody = document.getElementById('requests-tbody');
-                if (tbody) {
-                    tbody.innerHTML = `<tr><td class="loading-cell" colspan="7">加载失败：${error.message}</td></tr>`;
+            } catch (e) {}
+            
+            await loadRequestsWithParams(params);
+        }
+        
+        function updateFilterSummary(summary, total) {
+            const summaryBar = document.getElementById('filterSummaryBar');
+            const headerText = document.getElementById('filter-summary-text');
+            
+            if (summary) {
+                // 如果有摘要，显示或更新摘要栏
+                if (!summaryBar) {
+                    // 创建摘要栏
+                    const tableHeader = document.querySelector('.table-header');
+                    const newSummary = document.createElement('div');
+                    newSummary.className = 'filter-summary';
+                    newSummary.id = 'filterSummaryBar';
+                    newSummary.innerHTML = `<span>${summary}</span><button class="clear-btn" onclick="clearAllFilters()">清除全部筛选</button>`;
+                    tableHeader.insertAdjacentElement('afterend', newSummary);
+                } else {
+                    summaryBar.querySelector('span').textContent = summary;
+                    summaryBar.style.display = 'flex';
                 }
-                finishLoadProgress('error');
+                
+                if (headerText) {
+                    headerText.innerHTML = `筛选结果 (<span id="header-total">${total}</span> 条记录)`;
+                }
+            } else {
+                // 没有筛选条件，隐藏摘要栏
+                if (summaryBar) {
+                    summaryBar.style.display = 'none';
+                }
             }
+        }
+        
+        function clearAllFilters() {
+            // 清除sessionStorage
+            sessionStorage.removeItem('searchParams');
+            // 清除表单
+            document.getElementById('searchForm').reset();
+            // 清除条件容器
+            document.getElementById('conditionsContainer').innerHTML = '';
+            conditionIdCounter = 0;
+            // 重新加载
+            loadRequestsWithParams(null);
         }
         
         function copyRequestLink() {
@@ -1631,6 +2669,12 @@
         
         // 页面初始化
         document.addEventListener('DOMContentLoaded', function() {
+            // 检查是否有高级筛选条件，如果有则自动展开面板
+            checkAdvancedFilters();
+            
+            // 从session恢复条件
+            restoreConditionsFromSession();
+            
             const initialRequestId = {{ initial_request_id if initial_request_id else 'null' }};
             if (initialRequestId) {
                 // 有request参数时：仅打开详情，不拉列表，关闭后再加载

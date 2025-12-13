@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException, Query, Depends, Form
-from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -9,9 +9,10 @@ import json
 import time
 import logging
 import random
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import asyncio
 from contextlib import asynccontextmanager
+from pydantic import BaseModel
 
 from config import config
 from database import db, APIRequest
@@ -24,6 +25,28 @@ from utils import (
     format_tokens,
     truncate_text
 )
+
+
+class SearchRequest(BaseModel):
+    """搜索请求模型"""
+    page: int = 1
+    search: Optional[str] = None
+    model_filter: Optional[str] = None
+    app_filter: Optional[str] = None
+    status_filter: Optional[str] = None
+    date_from: Optional[str] = None
+    date_to: Optional[str] = None
+    min_tokens: Optional[str] = None
+    max_tokens: Optional[str] = None
+    min_duration: Optional[str] = None
+    max_duration: Optional[str] = None
+    search_field: Optional[str] = None
+    sort_by: Optional[str] = None
+    sort_order: Optional[str] = None
+    id_from: Optional[str] = None
+    id_to: Optional[str] = None
+    search_mode: Optional[str] = None
+    cond: Optional[str] = None
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -74,6 +97,13 @@ def verify_password(credentials: HTTPBasicCredentials = Depends(security)):
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = Query(None),
                    model_filter: str = Query(None), app_filter: str = Query(None),
+                   status_filter: str = Query(None), date_from: str = Query(None),
+                   date_to: str = Query(None), min_tokens: str = Query(None),
+                   max_tokens: str = Query(None), min_duration: str = Query(None),
+                   max_duration: str = Query(None), search_field: str = Query(None),
+                   sort_by: str = Query(None), sort_order: str = Query(None),
+                   id_from: str = Query(None), id_to: str = Query(None),
+                   search_mode: str = Query(None),
                    request_id: int = Query(None, alias="request"),
                    lazy: bool = Query(True),
                    authenticated: bool = Depends(verify_password)):
@@ -91,10 +121,24 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             all_apps = []
             load_time_ms = 0
         else:
+            # 安全转换数值参数
+            min_tokens_int = safe_int(min_tokens)
+            max_tokens_int = safe_int(max_tokens)
+            min_duration_float = safe_float(min_duration)
+            max_duration_float = safe_float(max_duration)
+            id_from_int = safe_int(id_from)
+            id_to_int = safe_int(id_to)
+            
             # 使用优化的合并查询方法，一次获取所有数据
             data = db.get_requests_with_stats(
                 page=page, page_size=20, search=search,
-                model_filter=model_filter, app_filter=app_filter
+                model_filter=model_filter, app_filter=app_filter,
+                status_filter=status_filter, date_from=date_from,
+                date_to=date_to, min_tokens=min_tokens_int,
+                max_tokens=max_tokens_int, min_duration=min_duration_float,
+                max_duration=max_duration_float, search_field=search_field,
+                sort_by=sort_by, sort_order=sort_order,
+                id_from=id_from_int, id_to=id_to_int, search_mode=search_mode
             )
             
             result = data['result']
@@ -123,6 +167,15 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
 
         estimated_next_ms = get_estimated_load_ms()
         
+        # 构建筛选条件摘要
+        filter_summary = build_filter_summary(
+            search=search, model_filter=model_filter, app_filter=app_filter,
+            status_filter=status_filter, date_from=date_from, date_to=date_to,
+            min_tokens=min_tokens, max_tokens=max_tokens,
+            min_duration=min_duration, max_duration=max_duration, search_field=search_field,
+            sort_by=sort_by, id_from=id_from, id_to=id_to, search_mode=search_mode
+        )
+        
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "result": result,
@@ -132,29 +185,308 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             "search": search or "",
             "model_filter": model_filter or "",
             "app_filter": app_filter or "",
+            "status_filter": status_filter or "",
+            "date_from": date_from or "",
+            "date_to": date_to or "",
+            "min_tokens": min_tokens or "",
+            "max_tokens": max_tokens or "",
+            "min_duration": min_duration or "",
+            "max_duration": max_duration or "",
+            "search_field": search_field or "all",
+            "sort_by": sort_by or "time",
+            "sort_order": sort_order or "desc",
+            "id_from": id_from or "",
+            "id_to": id_to or "",
+            "search_mode": search_mode or "and",
             "current_page": page,
             "web_title": config.web_title,
             "skip_list": skip_list,
             "initial_request_id": request_id,
             "lazy": lazy,
             "load_time_ms": load_time_ms,
-            "estimated_next_ms": estimated_next_ms
+            "estimated_next_ms": estimated_next_ms,
+            "filter_summary": filter_summary
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+def safe_int(value) -> Optional[int]:
+    """安全转换为整数，空字符串或无效值返回None"""
+    if value is None or value == '':
+        return None
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def safe_float(value) -> Optional[float]:
+    """安全转换为浮点数，空字符串或无效值返回None"""
+    if value is None or value == '':
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def parse_conditions(cond_str: str) -> Optional[list]:
+    """解析高级条件参数，支持base64编码和直接JSON"""
+    if not cond_str:
+        return None
+    
+    import base64
+    from urllib.parse import unquote
+    
+    # 首先尝试base64解码
+    try:
+        decoded = base64.b64decode(cond_str).decode('utf-8')
+        decoded = unquote(decoded)
+        result = json.loads(decoded)
+        if isinstance(result, list):
+            return result
+    except:
+        pass
+    
+    # 尝试直接JSON解析
+    try:
+        result = json.loads(cond_str)
+        if isinstance(result, list):
+            return result
+    except:
+        pass
+    
+    # 尝试URL解码后JSON解析
+    try:
+        result = json.loads(unquote(cond_str))
+        if isinstance(result, list):
+            return result
+    except:
+        pass
+    
+    return None
+
+
+def build_filter_summary(search=None, model_filter=None, app_filter=None,
+                        status_filter=None, date_from=None, date_to=None,
+                        min_tokens=None, max_tokens=None, min_duration=None,
+                        max_duration=None, search_field=None, sort_by=None,
+                        id_from=None, id_to=None, search_mode=None, conditions=None):
+    """构建筛选条件的摘要文本"""
+    parts = []
+    
+    if search:
+        field_names = {
+            'all': '全部字段',
+            'request': '请求内容',
+            'response': '响应内容',
+            'error': '错误信息'
+        }
+        field_name = field_names.get(search_field, '全部字段')
+        mode_name = 'AND' if search_mode == 'and' else 'OR'
+        if ' ' in search or '-' in search:
+            parts.append(f'搜索"{search}"于{field_name}({mode_name}模式)')
+        else:
+            parts.append(f'搜索"{search}"于{field_name}')
+    
+    if model_filter:
+        parts.append(f'模型: {model_filter}')
+    
+    if app_filter:
+        parts.append(f'应用: {app_filter}')
+    
+    if status_filter:
+        status_names = {'success': '成功', 'error': '失败', 'pending': '处理中'}
+        parts.append(f'状态: {status_names.get(status_filter, status_filter)}')
+    
+    if date_from or date_to:
+        if date_from and date_to:
+            parts.append(f'时间: {date_from} 至 {date_to}')
+        elif date_from:
+            parts.append(f'时间: {date_from} 起')
+        else:
+            parts.append(f'时间: 至 {date_to}')
+    
+    if min_tokens or max_tokens:
+        if min_tokens and max_tokens:
+            parts.append(f'Token: {min_tokens}-{max_tokens}')
+        elif min_tokens:
+            parts.append(f'Token: ≥{min_tokens}')
+        else:
+            parts.append(f'Token: ≤{max_tokens}')
+    
+    if min_duration or max_duration:
+        if min_duration and max_duration:
+            parts.append(f'耗时: {min_duration}s-{max_duration}s')
+        elif min_duration:
+            parts.append(f'耗时: ≥{min_duration}s')
+        else:
+            parts.append(f'耗时: ≤{max_duration}s')
+    
+    if id_from or id_to:
+        if id_from and id_to:
+            parts.append(f'ID: {id_from}-{id_to}')
+        elif id_from:
+            parts.append(f'ID: ≥{id_from}')
+        else:
+            parts.append(f'ID: ≤{id_to}')
+    
+    if sort_by and sort_by != 'time':
+        sort_names = {'tokens': 'Token数', 'duration': '耗时', 'time': '时间'}
+        parts.append(f'排序: {sort_names.get(sort_by, sort_by)}')
+    
+    # 高级条件摘要
+    if conditions and isinstance(conditions, list):
+        for cond in conditions:
+            field = cond.get('field', '')
+            operator = cond.get('operator', '')
+            value = cond.get('value', '')
+            role = cond.get('role', '')
+            negate = cond.get('negate', False)
+            
+            if field == 'role':
+                op_text = '包含' if operator == 'exists' else '不包含'
+                role_names = {'system': '系统消息', 'user': '用户消息', 'assistant': '助手消息', 'tool': '工具消息'}
+                parts.append(f'{op_text}{role_names.get(value, value)}')
+            
+            elif field == 'role_content':
+                role_names = {'system': '系统', 'user': '用户', 'assistant': '助手', 'tool': '工具'}
+                op_text = '包含' if operator == 'contains' else '不包含'
+                parts.append(f'{role_names.get(role, role)}消息{op_text}"{value}"')
+            
+            elif field == 'any_content':
+                op_text = '包含' if operator == 'contains' else '不包含'
+                parts.append(f'内容{op_text}"{value}"')
+            
+            elif field == 'has_feature':
+                feature_names = {
+                    'tools': '工具定义', 'tool_calls': '工具调用', 'images': '图片',
+                    'functions': '函数', 'stream': '流式', 'error': '错误',
+                    'system_prompt': '系统提示词'
+                }
+                prefix = '无' if negate else '有'
+                parts.append(f'{prefix}{feature_names.get(value, value)}')
+            
+            elif field == 'model_contains':
+                op_text = '包含' if operator == 'contains' else '不包含'
+                parts.append(f'模型名{op_text}"{value}"')
+            
+            elif field == 'app_contains':
+                op_text = '包含' if operator == 'contains' else '不包含'
+                parts.append(f'应用名{op_text}"{value}"')
+            
+            elif field == 'error_contains':
+                op_text = '包含' if operator == 'contains' else '不包含'
+                parts.append(f'错误信息{op_text}"{value}"')
+            
+            elif field == 'param':
+                param_name = cond.get('param_name', '')
+                if operator == 'exists':
+                    parts.append(f'有参数{param_name}')
+                elif operator == 'not_exists':
+                    parts.append(f'无参数{param_name}')
+                else:
+                    parts.append(f'参数{param_name}={value}')
+    
+    return ' | '.join(parts) if parts else None
+
 @app.get("/api/requests")
 async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None),
                           model_filter: str = Query(None), app_filter: str = Query(None),
+                          status_filter: str = Query(None), date_from: str = Query(None),
+                          date_to: str = Query(None), min_tokens: str = Query(None),
+                          max_tokens: str = Query(None), min_duration: str = Query(None),
+                          max_duration: str = Query(None), search_field: str = Query(None),
+                          sort_by: str = Query(None), sort_order: str = Query(None),
+                          id_from: str = Query(None), id_to: str = Query(None),
+                          search_mode: str = Query(None), cond: str = Query(None),
                           authenticated: bool = Depends(verify_password)):
-    """获取请求列表API"""
+    """获取请求列表API (GET)"""
+    return await _search_requests(
+        page=page, search=search, model_filter=model_filter, app_filter=app_filter,
+        status_filter=status_filter, date_from=date_from, date_to=date_to,
+        min_tokens=min_tokens, max_tokens=max_tokens, min_duration=min_duration,
+        max_duration=max_duration, search_field=search_field, sort_by=sort_by,
+        sort_order=sort_order, id_from=id_from, id_to=id_to, search_mode=search_mode,
+        cond=cond
+    )
+
+
+@app.post("/search")
+async def post_search(request: Request, authenticated: bool = Depends(verify_password)):
+    """POST搜索接口 - 支持表单提交"""
+    form_data = await request.form()
+    
+    return await _search_requests(
+        page=safe_int(form_data.get('page')) or 1,
+        search=form_data.get('search') or None,
+        model_filter=form_data.get('model_filter') or None,
+        app_filter=form_data.get('app_filter') or None,
+        status_filter=form_data.get('status_filter') or None,
+        date_from=form_data.get('date_from') or None,
+        date_to=form_data.get('date_to') or None,
+        min_tokens=form_data.get('min_tokens') or None,
+        max_tokens=form_data.get('max_tokens') or None,
+        min_duration=form_data.get('min_duration') or None,
+        max_duration=form_data.get('max_duration') or None,
+        search_field=form_data.get('search_field') or None,
+        sort_by=form_data.get('sort_by') or None,
+        sort_order=form_data.get('sort_order') or None,
+        id_from=form_data.get('id_from') or None,
+        id_to=form_data.get('id_to') or None,
+        search_mode=form_data.get('search_mode') or None,
+        cond=form_data.get('cond') or None
+    )
+
+
+@app.post("/api/search")
+async def post_search_api(body: SearchRequest, authenticated: bool = Depends(verify_password)):
+    """POST搜索API - 支持JSON请求体"""
+    return await _search_requests(
+        page=body.page, search=body.search, model_filter=body.model_filter,
+        app_filter=body.app_filter, status_filter=body.status_filter,
+        date_from=body.date_from, date_to=body.date_to,
+        min_tokens=body.min_tokens, max_tokens=body.max_tokens,
+        min_duration=body.min_duration, max_duration=body.max_duration,
+        search_field=body.search_field, sort_by=body.sort_by,
+        sort_order=body.sort_order, id_from=body.id_from, id_to=body.id_to,
+        search_mode=body.search_mode, cond=body.cond
+    )
+
+
+async def _search_requests(page=1, search=None, model_filter=None, app_filter=None,
+                           status_filter=None, date_from=None, date_to=None,
+                           min_tokens=None, max_tokens=None, min_duration=None,
+                           max_duration=None, search_field=None, sort_by=None,
+                           sort_order=None, id_from=None, id_to=None,
+                           search_mode=None, cond=None):
+    """搜索请求的核心逻辑"""
     try:
         start_time = time.perf_counter()
+        
+        # 安全转换数值参数
+        min_tokens_int = safe_int(min_tokens)
+        max_tokens_int = safe_int(max_tokens)
+        min_duration_float = safe_float(min_duration)
+        max_duration_float = safe_float(max_duration)
+        id_from_int = safe_int(id_from)
+        id_to_int = safe_int(id_to)
+        
+        # 解析高级条件（支持base64编码和直接JSON）
+        conditions_list = parse_conditions(cond)
         
         # 使用优化的合并查询方法，一次获取所有数据
         data = db.get_requests_with_stats(
             page=page, page_size=20, search=search,
-            model_filter=model_filter, app_filter=app_filter
+            model_filter=model_filter, app_filter=app_filter,
+            status_filter=status_filter, date_from=date_from,
+            date_to=date_to, min_tokens=min_tokens_int,
+            max_tokens=max_tokens_int, min_duration=min_duration_float,
+            max_duration=max_duration_float, search_field=search_field,
+            sort_by=sort_by, sort_order=sort_order,
+            id_from=id_from_int, id_to=id_to_int, search_mode=search_mode,
+            conditions=conditions_list
         )
         
         result = data['result']
@@ -168,11 +500,25 @@ async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None)
             req['formatted_input_tokens'] = format_tokens(req['input_tokens'])
             req['formatted_output_tokens'] = format_tokens(req['output_tokens'])
             req['formatted_total_tokens'] = format_tokens(req['total_tokens'])
+            
+            # 如果有搜索词，提取匹配的片段
+            if search:
+                req['match_snippets'] = extract_match_snippets(req, search)
 
         load_time_ms = (time.perf_counter() - start_time) * 1000
         global last_list_load_ms
         last_list_load_ms = load_time_ms
         estimated_next_ms = get_estimated_load_ms()
+        
+        # 构建筛选条件摘要
+        filter_summary = build_filter_summary(
+            search=search, model_filter=model_filter, app_filter=app_filter,
+            status_filter=status_filter, date_from=date_from, date_to=date_to,
+            min_tokens=min_tokens, max_tokens=max_tokens,
+            min_duration=min_duration, max_duration=max_duration, search_field=search_field,
+            sort_by=sort_by, id_from=id_from, id_to=id_to, search_mode=search_mode,
+            conditions=conditions_list
+        )
         
         return {
             "result": result,
@@ -180,10 +526,76 @@ async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None)
             "all_models": all_models,
             "all_apps": all_apps,
             "load_time_ms": load_time_ms,
-            "estimated_next_ms": estimated_next_ms
+            "estimated_next_ms": estimated_next_ms,
+            "filter_summary": filter_summary,
+            "search_keyword": search
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def extract_match_snippets(req: dict, search: str, context_chars: int = 50) -> list:
+    """从请求/响应内容中提取匹配搜索词的片段"""
+    snippets = []
+    search_lower = search.lower()
+    
+    # 搜索请求内容
+    if req.get('request_content'):
+        content = json.dumps(req['request_content'], ensure_ascii=False)
+        snippets.extend(find_snippets_in_text(content, search_lower, context_chars, 'request'))
+    
+    # 搜索响应内容
+    if req.get('response_content'):
+        content = json.dumps(req['response_content'], ensure_ascii=False)
+        snippets.extend(find_snippets_in_text(content, search_lower, context_chars, 'response'))
+    
+    # 搜索错误信息
+    if req.get('error_message'):
+        snippets.extend(find_snippets_in_text(req['error_message'], search_lower, context_chars, 'error'))
+    
+    # 最多返回3个片段
+    return snippets[:3]
+
+
+def find_snippets_in_text(text: str, search: str, context_chars: int, source: str) -> list:
+    """在文本中查找匹配片段"""
+    import re
+    snippets = []
+    text_lower = text.lower()
+    
+    # 查找所有匹配位置
+    start = 0
+    while True:
+        pos = text_lower.find(search, start)
+        if pos == -1:
+            break
+        
+        # 提取上下文
+        snippet_start = max(0, pos - context_chars)
+        snippet_end = min(len(text), pos + len(search) + context_chars)
+        
+        snippet = text[snippet_start:snippet_end]
+        
+        # 添加省略号
+        if snippet_start > 0:
+            snippet = '...' + snippet
+        if snippet_end < len(text):
+            snippet = snippet + '...'
+        
+        snippets.append({
+            'source': source,
+            'text': snippet,
+            'match_start': pos - snippet_start + (3 if snippet_start > 0 else 0),
+            'match_length': len(search)
+        })
+        
+        start = pos + 1
+        
+        # 最多找3个匹配
+        if len(snippets) >= 3:
+            break
+    
+    return snippets
 
 @app.get("/api/requests/{request_id}")
 async def get_request_detail(request_id: int, authenticated: bool = Depends(verify_password)):
