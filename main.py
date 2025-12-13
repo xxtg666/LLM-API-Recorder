@@ -91,16 +91,16 @@ async def dashboard(request: Request, page: int = Query(1, ge=1), search: str = 
             all_apps = []
             load_time_ms = 0
         else:
-            # 获取请求记录
-            result = db.get_requests(page=page, page_size=20, search=search, 
-                                   model_filter=model_filter, app_filter=app_filter)
+            # 使用优化的合并查询方法，一次获取所有数据
+            data = db.get_requests_with_stats(
+                page=page, page_size=20, search=search,
+                model_filter=model_filter, app_filter=app_filter
+            )
             
-            # 获取统计信息
-            stats = db.get_statistics(search=search, model_filter=model_filter, app_filter=app_filter)
-            
-            # 获取筛选选项
-            all_models = db.get_unique_models()
-            all_apps = db.get_unique_apps()
+            result = data['result']
+            stats = data['stats']
+            all_models = data['all_models']
+            all_apps = data['all_apps']
             
             # 格式化数据用于显示
             for req in result['requests']:
@@ -150,13 +150,17 @@ async def get_requests_api(page: int = Query(1, ge=1), search: str = Query(None)
     """获取请求列表API"""
     try:
         start_time = time.perf_counter()
-        result = db.get_requests(page=page, page_size=20, search=search, 
-                               model_filter=model_filter, app_filter=app_filter)
         
-        stats = db.get_statistics(search=search, model_filter=model_filter, app_filter=app_filter)
+        # 使用优化的合并查询方法，一次获取所有数据
+        data = db.get_requests_with_stats(
+            page=page, page_size=20, search=search,
+            model_filter=model_filter, app_filter=app_filter
+        )
         
-        all_models = db.get_unique_models()
-        all_apps = db.get_unique_apps()
+        result = data['result']
+        stats = data['stats']
+        all_models = data['all_models']
+        all_apps = data['all_apps']
         
         # 格式化数据
         for req in result['requests']:

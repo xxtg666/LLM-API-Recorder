@@ -29,7 +29,10 @@ class Config:
         self.config.set('server', 'web_title', 'LLM API Recorder')
         
         self.config.add_section('database')
-        self.config.set('database', 'db_path', 'llm_requests.db')
+        # 支持两种格式：
+        # 1. 直接文件路径（SQLite）: llm_requests.db
+        # 2. 完整URL: postgresql://user:password@host:port/dbname
+        self.config.set('database', 'db_url', 'llm_requests.db')
         
         with open(self.config_file, 'w', encoding='utf-8') as f:
             self.config.write(f)
@@ -59,8 +62,18 @@ class Config:
         return self.config.get('server', 'web_title', fallback='LLM API 监控面板')
     
     @property
+    def db_url(self) -> str:
+        """获取数据库连接URL，支持新旧配置格式"""
+        # 优先使用新的 db_url 配置
+        if self.config.has_option('database', 'db_url'):
+            return self.config.get('database', 'db_url')
+        # 向后兼容：如果只有 db_path，则使用它作为 SQLite 文件路径
+        return self.config.get('database', 'db_path', fallback='llm_requests.db')
+    
+    @property
     def db_path(self) -> str:
-        return self.config.get('database', 'db_path')
+        """向后兼容属性"""
+        return self.db_url
 
 # 全局配置实例
 config = Config()

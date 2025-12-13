@@ -7,3 +7,7 @@ python-multipart==0.0.6
 pydantic==2.5.0
 python-jose==3.3.0
 aiofiles==23.2.1
+
+# PostgreSQL 驱动 (如需使用 PostgreSQL 数据库请安装)
+# pip install psycopg2-binary
+# 或者使用异步驱动: pip install asyncpg

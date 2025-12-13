@@ -4,11 +4,11 @@
 # OpenAI: https://api.openai.com/v1
 # Azure OpenAI: https://your-resource.openai.azure.com/openai/deployments/your-deployment
 # 其他兼容 OpenAI API 的服务
-api_base_url = "https://api.openai.com/v1"
+api_base_url = https://api.openai.com/v1
 
 # 服务器配置
 [server]
-host = "0.0.0.0"
+host = 0.0.0.0
 port = 8000
 debug = true
 access_password = 
@@ -16,4 +16,18 @@ web_title = LLM API Recorder
 
 # 数据库配置
 [database]
-db_path = "llm_requests.db"
+# 支持两种数据库类型:
+#
+# 1. SQLite (默认，适合开发和小规模部署):
+#    - 直接使用文件路径: llm_requests.db
+#    - 或使用完整URL: sqlite:///llm_requests.db
+#
+# 2. PostgreSQL (推荐生产环境):
+#    - postgresql://username:password@host:port/database
+#    - 示例: postgresql://llm_user:your_password@localhost:5432/llm_api_logs
+#    - 需要安装 psycopg2: pip install psycopg2-binary
+#
+db_url = llm_requests.db
+
+# PostgreSQL 配置示例 (取消注释使用):
+# db_url = postgresql://username:password@localhost:5432/llm_api_logs
